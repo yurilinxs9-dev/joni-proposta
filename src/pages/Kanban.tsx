@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { usePropostas, useUpdatePropostaStatus, useDeleteProposta } from "@/hooks/usePropostas";
 import { useAgendaEvents } from "@/hooks/useGoogleCalendar";
-import { STATUS_LABELS, type StatusProposta } from "@/types/proposta";
+import { STATUS_LABELS, type StatusProposta, type PropostaDB } from "@/types/proposta";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, MessageCircle, Calendar, Bell } from "lucide-react";
+import { Trash2, MessageCircle, Calendar, FilePlus, Eye } from "lucide-react";
 
 const COLUMNS: StatusProposta[] = ["novo_lead", "proposta_enviada", "em_negociacao", "fechado", "perdido"];
 
@@ -33,14 +34,33 @@ function formatWhatsAppUrl(phone: string) {
 }
 
 export default function Kanban() {
+  const navigate = useNavigate();
   const { data: propostas = [], isLoading } = usePropostas();
   const { data: agendaEvents = [] } = useAgendaEvents();
   const updateStatus = useUpdatePropostaStatus();
   const deleteProposta = useDeleteProposta();
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedProposta, setSelectedProposta] = useState<PropostaDB | null>(null);
 
   const pendingAgendaEvents = agendaEvents.filter((e) => e.status === "pendente");
+
+  // Verifica se a proposta está "vazia" (sem serviços/valores)
+  const isPropostaVazia = (p: PropostaDB) => {
+    return (!p.proposta_servicos || p.proposta_servicos.length === 0) && p.valor_total === 0;
+  };
+
+  // Criar proposta completa a partir de um lead vazio
+  const handleCriarProposta = (p: PropostaDB) => {
+    // Redirecionar para Nova Proposta com os dados do cliente
+    const params = new URLSearchParams({
+      cliente: p.cliente_nome,
+      empresa: p.cliente_empresa || "",
+      whatsapp: p.cliente_whatsapp || "",
+      propostaId: p.id, // Para vincular depois
+    });
+    navigate(`/nova-proposta?${params.toString()}`);
+  };
 
   const handleDragStart = () => {
     setIsDragging(true);
@@ -134,52 +154,65 @@ export default function Kanban() {
                           snapshot.isDraggingOver ? style.dragOver : ""
                         }`}
                       >
-                        {items.map((proposta, index) => (
-                          <Draggable key={proposta.id} draggableId={proposta.id} index={index}>
-                            {(provided, snapshot) => (
-                              <Card
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className={`p-3 cursor-grab active:cursor-grabbing transition-all duration-200 border-0 shadow-sm hover:shadow-md ${
-                                  snapshot.isDragging ? "shadow-xl ring-2 ring-primary/20 rotate-1" : ""
-                                }`}
-                              >
-                                <p className="font-medium text-sm">{proposta.cliente_nome}</p>
-                                {proposta.cliente_empresa && (
-                                  <p className="text-xs text-muted-foreground">{proposta.cliente_empresa}</p>
-                                )}
-                                <p className="text-sm font-bold text-foreground mt-1">
-                                  {formatCurrency(proposta.valor_total)}
-                                </p>
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                  {proposta.proposta_servicos?.map((s) => (
-                                    <Badge key={s.id} variant="outline" className="text-[10px] py-0 font-normal">
-                                      {s.servico_nome}
-                                    </Badge>
-                                  ))}
-                                </div>
-                                <div className="flex items-center justify-between mt-1">
-                                  <p className="text-[10px] text-muted-foreground">
-                                    {new Date(proposta.created_at).toLocaleDateString("pt-BR")}
-                                  </p>
-                                  {proposta.cliente_whatsapp && (
-                                    <a
-                                      href={formatWhatsAppUrl(proposta.cliente_whatsapp)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-green-500 hover:text-green-600 transition-colors"
-                                      onClick={(e) => e.stopPropagation()}
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                    >
-                                      <MessageCircle className="h-4 w-4" />
-                                    </a>
+                        {items.map((proposta, index) => {
+                          const vazia = isPropostaVazia(proposta);
+                          return (
+                            <Draggable key={proposta.id} draggableId={proposta.id} index={index}>
+                              {(provided, snapshot) => (
+                                <Card
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  onClick={() => setSelectedProposta(proposta)}
+                                  className={`p-3 cursor-grab active:cursor-grabbing transition-all duration-200 border-0 shadow-sm hover:shadow-md ${
+                                    snapshot.isDragging ? "shadow-xl ring-2 ring-primary/20 rotate-1" : ""
+                                  } ${vazia ? "border-l-4 border-l-amber-400" : ""}`}
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <p className="font-medium text-sm">{proposta.cliente_nome}</p>
+                                    {vazia && (
+                                      <Badge variant="outline" className="text-[9px] py-0 bg-amber-50 text-amber-600 border-amber-200">
+                                        Sem proposta
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {proposta.cliente_empresa && (
+                                    <p className="text-xs text-muted-foreground">{proposta.cliente_empresa}</p>
                                   )}
-                                </div>
-                              </Card>
-                            )}
-                          </Draggable>
-                        ))}
+                                  {!vazia && (
+                                    <p className="text-sm font-bold text-foreground mt-1">
+                                      {formatCurrency(proposta.valor_total)}
+                                    </p>
+                                  )}
+                                  <div className="flex flex-wrap gap-1 mt-2">
+                                    {proposta.proposta_servicos?.map((s) => (
+                                      <Badge key={s.id} variant="outline" className="text-[10px] py-0 font-normal">
+                                        {s.servico_nome}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                  <div className="flex items-center justify-between mt-1">
+                                    <p className="text-[10px] text-muted-foreground">
+                                      {new Date(proposta.created_at).toLocaleDateString("pt-BR")}
+                                    </p>
+                                    {proposta.cliente_whatsapp && (
+                                      <a
+                                        href={formatWhatsAppUrl(proposta.cliente_whatsapp)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-green-500 hover:text-green-600 transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                      >
+                                        <MessageCircle className="h-4 w-4" />
+                                      </a>
+                                    )}
+                                  </div>
+                                </Card>
+                              )}
+                            </Draggable>
+                          );
+                        })}
                         {provided.placeholder}
                       </div>
                     )}
@@ -217,6 +250,98 @@ export default function Kanban() {
           </Droppable>
         </div>
       </DragDropContext>
+
+      {/* Modal de detalhes/criar proposta */}
+      <Dialog open={!!selectedProposta} onOpenChange={() => setSelectedProposta(null)}>
+        <DialogContent className="max-w-md">
+          {selectedProposta && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {selectedProposta.cliente_nome}
+                  {isPropostaVazia(selectedProposta) && (
+                    <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
+                      Lead sem proposta
+                    </Badge>
+                  )}
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                {selectedProposta.cliente_empresa && (
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Empresa:</strong> {selectedProposta.cliente_empresa}
+                  </p>
+                )}
+                {selectedProposta.cliente_whatsapp && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <strong>WhatsApp:</strong>{" "}
+                    <a
+                      href={formatWhatsAppUrl(selectedProposta.cliente_whatsapp)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-600 hover:underline flex items-center gap-1"
+                    >
+                      {selectedProposta.cliente_whatsapp}
+                      <MessageCircle className="h-4 w-4" />
+                    </a>
+                  </p>
+                )}
+
+                {isPropostaVazia(selectedProposta) ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
+                    <p className="text-sm text-amber-700">
+                      Este lead ainda não tem uma proposta definida. Clique abaixo para criar a proposta completa com serviços e valores.
+                    </p>
+                    <Button
+                      onClick={() => handleCriarProposta(selectedProposta)}
+                      className="w-full gap-2"
+                    >
+                      <FilePlus className="h-4 w-4" />
+                      Criar Proposta
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-sm text-muted-foreground">Valor Total</p>
+                      <p className="text-xl font-bold">{formatCurrency(selectedProposta.valor_total)}</p>
+                    </div>
+
+                    {selectedProposta.proposta_servicos && selectedProposta.proposta_servicos.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium mb-2">Serviços:</p>
+                        <div className="space-y-1">
+                          {selectedProposta.proposta_servicos.map((s) => (
+                            <div key={s.id} className="flex justify-between text-sm">
+                              <span>{s.servico_nome}</span>
+                              <span className="font-medium">{formatCurrency(s.valor_mensal)}/mês</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <Link to={`/propostas`} onClick={() => setSelectedProposta(null)}>
+                      <Button variant="outline" className="w-full gap-2 mt-2">
+                        <Eye className="h-4 w-4" />
+                        Ver Detalhes Completos
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+
+                {selectedProposta.observacoes && (
+                  <div>
+                    <p className="text-sm font-medium mb-1">Observações:</p>
+                    <p className="text-sm text-muted-foreground">{selectedProposta.observacoes}</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

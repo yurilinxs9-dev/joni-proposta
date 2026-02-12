@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { useCreateProposta } from "@/hooks/usePropostas";
+import { useCreateProposta, useUpdatePropostaCompleta } from "@/hooks/usePropostas";
 import {
   useServicosPersonalizados,
   useCreateServico,
@@ -20,7 +21,7 @@ import {
 import { SERVICOS_PADRAO, type Servico } from "@/types/proposta";
 import { useToast } from "@/hooks/use-toast";
 import { generatePDF } from "@/lib/generatePDF";
-import { ArrowLeft, FileDown, Save, Plus, Settings, Trash2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, FileDown, Save, Plus, Settings, Trash2, Eye, EyeOff, Calendar } from "lucide-react";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -34,9 +35,18 @@ interface ServicoComId extends Servico {
 
 export default function NovaProposta() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const createProposta = useCreateProposta();
+  const updatePropostaCompleta = useUpdatePropostaCompleta();
   const { toast } = useToast();
+
+  // Parâmetros vindos de um lead (Google Agenda)
+  const leadCliente = searchParams.get("cliente") || "";
+  const leadEmpresa = searchParams.get("empresa") || "";
+  const leadWhatsapp = searchParams.get("whatsapp") || "";
+  const leadPropostaId = searchParams.get("propostaId") || "";
+  const isEditingLead = !!leadPropostaId;
 
   // Serviços personalizados do banco
   const { data: servicosPersonalizados = [], isLoading: loadingServicos } = useServicosPersonalizados();
@@ -44,9 +54,9 @@ export default function NovaProposta() {
   const deleteServico = useDeleteServico();
   const toggleOculto = useToggleOculto();
 
-  const [clienteNome, setClienteNome] = useState("");
-  const [clienteEmpresa, setClienteEmpresa] = useState("");
-  const [clienteWhatsapp, setClienteWhatsapp] = useState("");
+  const [clienteNome, setClienteNome] = useState(leadCliente);
+  const [clienteEmpresa, setClienteEmpresa] = useState(leadEmpresa);
+  const [clienteWhatsapp, setClienteWhatsapp] = useState(leadWhatsapp);
   const [servicos, setServicos] = useState<ServicoComId[]>([]);
   const [descontoTipo, setDescontoTipo] = useState<"percentual" | "fixo">("percentual");
   const [descontoValor, setDescontoValor] = useState(0);
@@ -177,24 +187,44 @@ export default function NovaProposta() {
 
   const handleSave = async (downloadPDF = false) => {
     try {
-      const result = await createProposta.mutateAsync({
-        cliente_nome: clienteNome,
-        cliente_empresa: clienteEmpresa || undefined,
-        cliente_whatsapp: clienteWhatsapp || undefined,
-        valor_mensal: valorMensalFinal,
-        valor_setup: valorSetupFinal,
-        valor_total: valorTotal,
-        desconto_tipo: descontoTipo,
-        desconto_valor: descontoValor,
-        observacoes: observacoes || undefined,
-        criado_por: user?.id,
-        servicos: selecionados.map((s) => ({
-          servico_nome: s.nome,
-          descricao: s.descricao,
-          valor_mensal: s.valor_mensal,
-          valor_setup: s.valor_setup,
-        })),
-      });
+      const servicosFormatados = selecionados.map((s) => ({
+        servico_nome: s.nome,
+        descricao: s.descricao,
+        valor_mensal: s.valor_mensal,
+        valor_setup: s.valor_setup,
+      }));
+
+      if (isEditingLead) {
+        // Atualizar proposta existente (lead da agenda)
+        await updatePropostaCompleta.mutateAsync({
+          id: leadPropostaId,
+          cliente_nome: clienteNome,
+          cliente_empresa: clienteEmpresa || undefined,
+          cliente_whatsapp: clienteWhatsapp || undefined,
+          valor_mensal: valorMensalFinal,
+          valor_setup: valorSetupFinal,
+          valor_total: valorTotal,
+          desconto_tipo: descontoTipo,
+          desconto_valor: descontoValor,
+          observacoes: observacoes || undefined,
+          servicos: servicosFormatados,
+        });
+      } else {
+        // Criar nova proposta
+        await createProposta.mutateAsync({
+          cliente_nome: clienteNome,
+          cliente_empresa: clienteEmpresa || undefined,
+          cliente_whatsapp: clienteWhatsapp || undefined,
+          valor_mensal: valorMensalFinal,
+          valor_setup: valorSetupFinal,
+          valor_total: valorTotal,
+          desconto_tipo: descontoTipo,
+          desconto_valor: descontoValor,
+          observacoes: observacoes || undefined,
+          criado_por: user?.id,
+          servicos: servicosFormatados,
+        });
+      }
 
       if (downloadPDF) {
         await generatePDF({
@@ -211,12 +241,14 @@ export default function NovaProposta() {
         });
       }
 
-      toast({ title: "Proposta salva com sucesso!" });
+      toast({ title: isEditingLead ? "Proposta atualizada com sucesso!" : "Proposta salva com sucesso!" });
       navigate("/propostas");
     } catch (error: any) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     }
   };
+
+  const isSaving = createProposta.isPending || updatePropostaCompleta.isPending;
 
   if (step === "resumo") {
     return (
@@ -290,11 +322,11 @@ export default function NovaProposta() {
         )}
 
         <div className="flex gap-3">
-          <Button className="flex-1" onClick={() => handleSave(false)} disabled={createProposta.isPending}>
-            <Save className="h-4 w-4 mr-2" /> Salvar Proposta
+          <Button className="flex-1" onClick={() => handleSave(false)} disabled={isSaving}>
+            <Save className="h-4 w-4 mr-2" /> {isEditingLead ? "Atualizar Proposta" : "Salvar Proposta"}
           </Button>
-          <Button variant="outline" className="flex-1" onClick={() => handleSave(true)} disabled={createProposta.isPending}>
-            <FileDown className="h-4 w-4 mr-2" /> Salvar e Baixar PDF
+          <Button variant="outline" className="flex-1" onClick={() => handleSave(true)} disabled={isSaving}>
+            <FileDown className="h-4 w-4 mr-2" /> {isEditingLead ? "Atualizar e Baixar PDF" : "Salvar e Baixar PDF"}
           </Button>
         </div>
       </div>
@@ -304,8 +336,22 @@ export default function NovaProposta() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Nova Proposta</h1>
-        <p className="text-muted-foreground mt-1">Preencha os dados e selecione os serviços</p>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-extrabold tracking-tight">
+            {isEditingLead ? "Completar Proposta" : "Nova Proposta"}
+          </h1>
+          {isEditingLead && (
+            <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 gap-1">
+              <Calendar className="h-3 w-3" />
+              Lead da Agenda
+            </Badge>
+          )}
+        </div>
+        <p className="text-muted-foreground mt-1">
+          {isEditingLead
+            ? `Complete a proposta para ${leadCliente}`
+            : "Preencha os dados e selecione os serviços"}
+        </p>
       </div>
 
       <Card>

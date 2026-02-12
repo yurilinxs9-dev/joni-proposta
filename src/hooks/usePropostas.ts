@@ -91,6 +91,51 @@ export function useUpdateProposta() {
   });
 }
 
+// Atualiza proposta completa (dados + serviços) - usado quando completamos um lead
+export function useUpdatePropostaCompleta() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (proposta: {
+      id: string;
+      cliente_nome: string;
+      cliente_empresa?: string;
+      cliente_whatsapp?: string;
+      cliente_email?: string;
+      valor_mensal: number;
+      valor_setup: number;
+      valor_total: number;
+      desconto_tipo?: string;
+      desconto_valor?: number;
+      observacoes?: string;
+      servicos: { servico_nome: string; descricao: string; valor_mensal: number; valor_setup: number }[];
+    }) => {
+      const { id, servicos, ...propostaData } = proposta;
+
+      // Atualiza proposta
+      const { error } = await supabase
+        .from("propostas")
+        .update(propostaData)
+        .eq("id", id);
+      if (error) throw error;
+
+      // Remove serviços antigos e insere novos
+      const { error: deleteError } = await supabase
+        .from("proposta_servicos")
+        .delete()
+        .eq("proposta_id", id);
+      if (deleteError) throw deleteError;
+
+      if (servicos.length > 0) {
+        const { error: sError } = await supabase
+          .from("proposta_servicos")
+          .insert(servicos.map((s) => ({ ...s, proposta_id: id })));
+        if (sError) throw sError;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["propostas"] }),
+  });
+}
+
 export function useDeleteProposta() {
   const qc = useQueryClient();
   return useMutation({
