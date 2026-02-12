@@ -3,7 +3,9 @@ export interface Servico {
   descricao: string;
   valor_mensal: number;
   valor_setup: number;
+  investimento_trafego?: number; // Apenas para Tráfego Pago
   selecionado: boolean;
+  temSetup?: boolean; // Indica se esse serviço permite setup
 }
 
 export const SERVICOS_PADRAO: Servico[] = [
@@ -23,21 +25,54 @@ export const SERVICOS_PADRAO: Servico[] = [
     ].join("\n"),
     valor_mensal: 1500,
     valor_setup: 0,
+    investimento_trafego: 0,
     selecionado: false,
+    temSetup: false,
   },
   {
-    nome: "Social Media",
+    nome: "Social Media - Plano 3 posts/semana (12/mês)",
     descricao: [
-      "Gestão completa de redes sociais",
-      "Criação de conteúdo e calendário editorial",
-      "Design de posts e stories",
-      "Monitoramento e interação com seguidores",
-      "Relatórios mensais de crescimento",
-      "Estratégia de hashtags e alcance orgânico",
+      "Planejamento de marketing",
+      "Criação de conteúdo",
+      "Layout e designer de post",
+      "Programação semanal",
+      "Mentoria e técnicas de fotografia e gestão da rede social",
+      "Gravação e edição",
     ].join("\n"),
-    valor_mensal: 1200,
+    valor_mensal: 1100,
     valor_setup: 0,
     selecionado: false,
+    temSetup: false,
+  },
+  {
+    nome: "Social Media - Plano 5 posts/semana (20/mês)",
+    descricao: [
+      "Planejamento de marketing",
+      "Criação de conteúdo",
+      "Layout e designer de post",
+      "Programação semanal",
+      "Mentoria e técnicas de fotografia e gestão da rede social",
+      "Gravação e edição",
+    ].join("\n"),
+    valor_mensal: 1350,
+    valor_setup: 0,
+    selecionado: false,
+    temSetup: false,
+  },
+  {
+    nome: "Social Media - Plano 7 posts/semana (28/mês)",
+    descricao: [
+      "Planejamento de marketing",
+      "Criação de conteúdo",
+      "Layout e designer de post",
+      "Programação semanal",
+      "Mentoria e técnicas de fotografia e gestão da rede social",
+      "Gravação e edição",
+    ].join("\n"),
+    valor_mensal: 1400,
+    valor_setup: 0,
+    selecionado: false,
+    temSetup: false,
   },
   {
     nome: "Site E-Commerce",
@@ -50,9 +85,10 @@ export const SERVICOS_PADRAO: Servico[] = [
       "Menu administrativo para alterações",
       "Mentoria por 3 meses para treinamento da plataforma",
     ].join("\n"),
-    valor_mensal: 0,
-    valor_setup: 3000,
+    valor_mensal: 3000,
+    valor_setup: 0,
     selecionado: false,
+    temSetup: false,
   },
   {
     nome: "Automação",
@@ -66,6 +102,7 @@ export const SERVICOS_PADRAO: Servico[] = [
     valor_mensal: 497,
     valor_setup: 2000,
     selecionado: false,
+    temSetup: true, // Único serviço com setup
   },
 ];
 

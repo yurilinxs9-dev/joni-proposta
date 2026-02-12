@@ -53,6 +53,10 @@ function calcServiceHeight(
     const lines = wrapText(text, font, descFontSize, MAX_DESC_WIDTH);
     h += lines.length * lineHeight;
   }
+  // Extra line for "Investimento em Tráfego" if applicable
+  if (servico.investimento_trafego && servico.investimento_trafego > 0) {
+    h += lineHeight;
+  }
   h += 4 + separatorGap;
   return h;
 }
@@ -177,6 +181,14 @@ export async function generatePDF(data: PDFData) {
         currentY -= lineHeight;
       });
     });
+
+    // Add "Investimento em Tráfego" line if applicable
+    if (servico.investimento_trafego && servico.investimento_trafego > 0) {
+      page.drawText(`Investimento em Tráfego: ${formatCurrency(servico.investimento_trafego)}`, {
+        x: COL_DESC, y: currentY, size: descFontSize, font: helveticaBold, color: GOLD,
+      });
+      currentY -= lineHeight;
+    }
 
     currentY -= 4;
 

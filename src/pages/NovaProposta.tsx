@@ -39,7 +39,7 @@ export default function NovaProposta() {
     );
   };
 
-  const updateServicoValor = (index: number, field: "valor_mensal" | "valor_setup", value: number) => {
+  const updateServicoValor = (index: number, field: "valor_mensal" | "valor_setup" | "investimento_trafego", value: number) => {
     setServicos((prev) =>
       prev.map((s, i) => (i === index ? { ...s, [field]: value } : s))
     );
@@ -150,6 +150,9 @@ export default function NovaProposta() {
                   </div>
                   <div className="text-right shrink-0">
                     {s.valor_mensal > 0 && <p>{formatCurrency(s.valor_mensal)}/mês</p>}
+                    {s.investimento_trafego && s.investimento_trafego > 0 && (
+                      <p className="text-xs text-muted-foreground">Investimento: {formatCurrency(s.investimento_trafego)}</p>
+                    )}
                     {s.valor_setup > 0 && <p className="text-xs text-muted-foreground">Setup: {formatCurrency(s.valor_setup)}</p>}
                   </div>
                 </div>
@@ -263,14 +266,26 @@ export default function NovaProposta() {
                             onChange={(e) => updateServicoValor(index, "valor_mensal", Number(e.target.value))}
                           />
                         </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Valor setup (R$)</Label>
-                          <Input
-                            type="number"
-                            value={servico.valor_setup}
-                            onChange={(e) => updateServicoValor(index, "valor_setup", Number(e.target.value))}
-                          />
-                        </div>
+                        {servico.nome.includes("Tráfego") && (
+                          <div className="space-y-1">
+                            <Label className="text-xs">Investimento em Tráfego (R$)</Label>
+                            <Input
+                              type="number"
+                              value={servico.investimento_trafego || 0}
+                              onChange={(e) => updateServicoValor(index, "investimento_trafego", Number(e.target.value))}
+                            />
+                          </div>
+                        )}
+                        {servico.temSetup && (
+                          <div className="space-y-1">
+                            <Label className="text-xs">Valor setup (R$)</Label>
+                            <Input
+                              type="number"
+                              value={servico.valor_setup}
+                              onChange={(e) => updateServicoValor(index, "valor_setup", Number(e.target.value))}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
