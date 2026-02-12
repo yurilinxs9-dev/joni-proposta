@@ -154,6 +154,17 @@ export default function Propostas() {
                     <TableCell>{new Date(p.created_at).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex gap-1 justify-end">
+                        {p.cliente_whatsapp && (
+                          <a
+                            href={formatWhatsAppUrl(p.cliente_whatsapp)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button variant="ghost" size="icon" className="text-green-500 hover:text-green-600 hover:bg-green-50">
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                          </a>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => { setDetalhe(p); setObs(p.observacoes || ""); }}>
                           <Eye className="h-4 w-4" />
                         </Button>
