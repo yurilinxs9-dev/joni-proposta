@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { usePropostas, useDuplicateProposta, useUpdateProposta, useDeleteProposta } from "@/hooks/usePropostas";
 import { STATUS_LABELS, STATUS_COLORS, type StatusProposta } from "@/types/proposta";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +8,39 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { generatePDF } from "@/lib/generatePDF";
-import { Copy, FileDown, Search, Eye, Trash2, MessageCircle } from "lucide-react";
+import { Copy, FileDown, Search, Eye, Trash2, MessageCircle, Filter } from "lucide-react";
+
+// Categorias de serviço
+const CATEGORIAS = {
+  todos: "Todos os Serviços",
+  trafego: "Tráfego Pago",
+  social: "Social Media",
+  sites: "Sites/E-commerce",
+  automacao: "Automação",
+  outros: "Outros/Personalizados",
+} as const;
+
+type CategoriaFiltro = keyof typeof CATEGORIAS;
+
+function categorizeServico(nome: string): string {
+  const lower = nome.toLowerCase();
+  if (lower.includes("tráfego") || lower.includes("trafego") || lower.includes("facebook ads")) {
+    return "trafego";
+  }
+  if (lower.includes("social") || lower.includes("mídia") || lower.includes("midia") || lower.includes("instagram")) {
+    return "social";
+  }
+  if (lower.includes("site") || lower.includes("e-commerce") || lower.includes("ecommerce")) {
+    return "sites";
+  }
+  if (lower.includes("automação") || lower.includes("automacao")) {
+    return "automacao";
+  }
+  return "outros";
+}
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -29,14 +59,26 @@ export default function Propostas() {
   const updateProposta = useUpdateProposta();
   const { toast } = useToast();
   const [busca, setBusca] = useState("");
+  const [categoriaFiltro, setCategoriaFiltro] = useState<CategoriaFiltro>("todos");
   const [detalhe, setDetalhe] = useState<any>(null);
   const [obs, setObs] = useState("");
 
-  const filtered = propostas.filter(
-    (p) =>
-      p.cliente_nome.toLowerCase().includes(busca.toLowerCase()) ||
-      (p.cliente_empresa?.toLowerCase() || "").includes(busca.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    return propostas.filter((p) => {
+      // Filtro por busca de texto
+      const matchBusca =
+        p.cliente_nome.toLowerCase().includes(busca.toLowerCase()) ||
+        (p.cliente_empresa?.toLowerCase() || "").includes(busca.toLowerCase());
+
+      if (!matchBusca) return false;
+
+      // Filtro por categoria de serviço
+      if (categoriaFiltro === "todos") return true;
+
+      const servicos = (p.proposta_servicos || []) as any[];
+      return servicos.some((s) => categorizeServico(s.servico_nome) === categoriaFiltro);
+    });
+  }, [propostas, busca, categoriaFiltro]);
 
   const handleDuplicar = async (id: string) => {
     try {
@@ -106,18 +148,40 @@ export default function Propostas() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Propostas</h1>
-          <p className="text-muted-foreground mt-1">{propostas.length} propostas cadastradas</p>
+          <p className="text-muted-foreground mt-1">
+            {filtered.length === propostas.length
+              ? `${propostas.length} propostas cadastradas`
+              : `${filtered.length} de ${propostas.length} propostas`}
+            {categoriaFiltro !== "todos" && ` • ${CATEGORIAS[categoriaFiltro]}`}
+          </p>
         </div>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por cliente ou empresa..."
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por cliente ou empresa..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select value={categoriaFiltro} onValueChange={(v) => setCategoriaFiltro(v as CategoriaFiltro)}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filtrar por serviço" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CATEGORIAS).map(([key, label]) => (
+                <SelectItem key={key} value={key}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Card>
