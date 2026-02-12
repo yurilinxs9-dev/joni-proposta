@@ -1,4 +1,4 @@
-import { LayoutDashboard, FilePlus, FileText, Columns3, LogOut } from "lucide-react";
+import { LayoutDashboard, FilePlus, FileText, Columns3, LogOut, BarChart3 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Vendas", url: "/vendas", icon: BarChart3 },
   { title: "Nova Proposta", url: "/nova-proposta", icon: FilePlus },
   { title: "Propostas", url: "/propostas", icon: FileText },
   { title: "Kanban", url: "/kanban", icon: Columns3 },

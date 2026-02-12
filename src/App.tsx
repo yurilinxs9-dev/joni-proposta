@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Vendas from "./pages/Vendas";
 import NovaProposta from "./pages/NovaProposta";
 import Propostas from "./pages/Propostas";
 import Kanban from "./pages/Kanban";
@@ -38,6 +39,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<AuthRoute />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/vendas" element={<ProtectedRoute><Vendas /></ProtectedRoute>} />
             <Route path="/nova-proposta" element={<ProtectedRoute><NovaProposta /></ProtectedRoute>} />
             <Route path="/propostas" element={<ProtectedRoute><Propostas /></ProtectedRoute>} />
             <Route path="/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
