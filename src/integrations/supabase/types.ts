@@ -130,6 +130,45 @@ export type Database = {
         }
         Relationships: []
       }
+      servicos_personalizados: {
+        Row: {
+          id: string
+          user_id: string
+          nome: string
+          descricao: string | null
+          valor_mensal: number
+          valor_setup: number
+          tem_setup: boolean
+          oculto: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          nome: string
+          descricao?: string | null
+          valor_mensal?: number
+          valor_setup?: number
+          tem_setup?: boolean
+          oculto?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          nome?: string
+          descricao?: string | null
+          valor_mensal?: number
+          valor_setup?: number
+          tem_setup?: boolean
+          oculto?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
