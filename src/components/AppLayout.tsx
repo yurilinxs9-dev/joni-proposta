@@ -1,10 +1,12 @@
 import { ReactNode } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { GoogleCalendarSync } from "@/components/GoogleCalendarSync";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
+      <GoogleCalendarSync />
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col">

@@ -169,6 +169,84 @@ export type Database = {
         }
         Relationships: []
       }
+      google_integrations: {
+        Row: {
+          id: string
+          user_id: string
+          access_token: string
+          refresh_token: string | null
+          token_expiry: string | null
+          calendar_id: string
+          last_sync: string | null
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          access_token: string
+          refresh_token?: string | null
+          token_expiry?: string | null
+          calendar_id?: string
+          last_sync?: string | null
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          access_token?: string
+          refresh_token?: string | null
+          token_expiry?: string | null
+          calendar_id?: string
+          last_sync?: string | null
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      agenda_events: {
+        Row: {
+          id: string
+          user_id: string
+          google_event_id: string
+          titulo: string
+          cliente_detectado: string | null
+          data_evento: string
+          proposta_id: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          google_event_id: string
+          titulo: string
+          cliente_detectado?: string | null
+          data_evento: string
+          proposta_id?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          google_event_id?: string
+          titulo?: string
+          cliente_detectado?: string | null
+          data_evento?: string
+          proposta_id?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

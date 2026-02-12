@@ -1,4 +1,4 @@
-import { LayoutDashboard, FilePlus, FileText, Columns3, LogOut, BarChart3 } from "lucide-react";
+import { LayoutDashboard, FilePlus, FileText, Columns3, LogOut, BarChart3, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -21,6 +21,7 @@ const navItems = [
   { title: "Nova Proposta", url: "/nova-proposta", icon: FilePlus },
   { title: "Propostas", url: "/propostas", icon: FileText },
   { title: "Kanban", url: "/kanban", icon: Columns3 },
+  { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 
 export function AppSidebar() {

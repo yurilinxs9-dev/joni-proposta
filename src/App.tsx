@@ -11,6 +11,7 @@ import Vendas from "./pages/Vendas";
 import NovaProposta from "./pages/NovaProposta";
 import Propostas from "./pages/Propostas";
 import Kanban from "./pages/Kanban";
+import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/nova-proposta" element={<ProtectedRoute><NovaProposta /></ProtectedRoute>} />
             <Route path="/propostas" element={<ProtectedRoute><Propostas /></ProtectedRoute>} />
             <Route path="/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
+            <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

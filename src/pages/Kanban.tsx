@@ -1,11 +1,14 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { usePropostas, useUpdatePropostaStatus, useDeleteProposta } from "@/hooks/usePropostas";
+import { useAgendaEvents } from "@/hooks/useGoogleCalendar";
 import { STATUS_LABELS, type StatusProposta } from "@/types/proposta";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, MessageCircle } from "lucide-react";
+import { Trash2, MessageCircle, Calendar, Bell } from "lucide-react";
 
 const COLUMNS: StatusProposta[] = ["novo_lead", "proposta_enviada", "em_negociacao", "fechado", "perdido"];
 
@@ -31,10 +34,13 @@ function formatWhatsAppUrl(phone: string) {
 
 export default function Kanban() {
   const { data: propostas = [], isLoading } = usePropostas();
+  const { data: agendaEvents = [] } = useAgendaEvents();
   const updateStatus = useUpdatePropostaStatus();
   const deleteProposta = useDeleteProposta();
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
+
+  const pendingAgendaEvents = agendaEvents.filter((e) => e.status === "pendente");
 
   const handleDragStart = () => {
     setIsDragging(true);
@@ -84,9 +90,24 @@ export default function Kanban() {
 
   return (
     <div className="space-y-8 relative">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Kanban</h1>
-        <p className="text-muted-foreground mt-1">Arraste os cards para mover entre etapas</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Kanban</h1>
+          <p className="text-muted-foreground mt-1">Arraste os cards para mover entre etapas</p>
+        </div>
+
+        {/* Indicador de leads da agenda */}
+        {pendingAgendaEvents.length > 0 && (
+          <Link to="/configuracoes">
+            <Button variant="outline" className="gap-2 relative">
+              <Calendar className="h-4 w-4" />
+              <span>Leads da Agenda</span>
+              <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                {pendingAgendaEvents.length}
+              </span>
+            </Button>
+          </Link>
+        )}
       </div>
 
       <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
