@@ -27,8 +27,6 @@ export default function NovaProposta() {
   const [clienteNome, setClienteNome] = useState("");
   const [clienteEmpresa, setClienteEmpresa] = useState("");
   const [clienteWhatsapp, setClienteWhatsapp] = useState("");
-  const [clienteEmail, setClienteEmail] = useState("");
-  const [clienteEndereco, setClienteEndereco] = useState("");
   const [servicos, setServicos] = useState<Servico[]>(SERVICOS_PADRAO.map((s) => ({ ...s })));
   const [descontoTipo, setDescontoTipo] = useState<"percentual" | "fixo">("percentual");
   const [descontoValor, setDescontoValor] = useState(0);
@@ -75,7 +73,6 @@ export default function NovaProposta() {
         cliente_nome: clienteNome,
         cliente_empresa: clienteEmpresa || undefined,
         cliente_whatsapp: clienteWhatsapp || undefined,
-        cliente_email: clienteEmail || undefined,
         valor_mensal: valorMensalFinal,
         valor_setup: valorSetupFinal,
         valor_total: valorTotal,
@@ -95,9 +92,8 @@ export default function NovaProposta() {
         await generatePDF({
           clienteNome,
           clienteEmpresa,
-          clienteEmail,
+          clienteEmail: "",
           clienteWhatsapp,
-          clienteEndereco,
           servicos: selecionados,
           valorMensal: valorMensalFinal,
           valorSetup: valorSetupFinal,
@@ -132,8 +128,6 @@ export default function NovaProposta() {
             <p><strong>Nome:</strong> {clienteNome}</p>
             {clienteEmpresa && <p><strong>Empresa:</strong> {clienteEmpresa}</p>}
             {clienteWhatsapp && <p><strong>WhatsApp:</strong> {clienteWhatsapp}</p>}
-            {clienteEmail && <p><strong>Email:</strong> {clienteEmail}</p>}
-            {clienteEndereco && <p><strong>Endereço:</strong> {clienteEndereco}</p>}
             <p><strong>Data:</strong> {new Date().toLocaleDateString("pt-BR")}</p>
           </CardContent>
         </Card>
@@ -217,15 +211,7 @@ export default function NovaProposta() {
             </div>
             <div className="space-y-2">
               <Label>WhatsApp</Label>
-              <Input value={clienteWhatsapp} onChange={(e) => setClienteWhatsapp(e.target.value)} placeholder="(11) 99999-9999" />
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input type="email" value={clienteEmail} onChange={(e) => setClienteEmail(e.target.value)} placeholder="email@empresa.com" />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Endereço</Label>
-              <Input value={clienteEndereco} onChange={(e) => setClienteEndereco(e.target.value)} placeholder="Rua, número - Bairro" />
+              <Input value={clienteWhatsapp} onChange={(e) => setClienteWhatsapp(e.target.value)} placeholder="(37) 99999-9999" />
             </div>
           </div>
         </CardContent>

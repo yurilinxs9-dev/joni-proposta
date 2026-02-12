@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2 } from "lucide-react";
+import { Trash2, MessageCircle } from "lucide-react";
 
 const COLUMNS: StatusProposta[] = ["novo_lead", "proposta_enviada", "em_negociacao", "fechado", "perdido"];
 
@@ -21,6 +21,12 @@ const DELETE_ZONE_ID = "__DELETE__";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+function formatWhatsAppUrl(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  const number = digits.startsWith("55") ? digits : `55${digits}`;
+  return `https://wa.me/${number}`;
 }
 
 export default function Kanban() {
@@ -132,9 +138,23 @@ export default function Kanban() {
                                     </Badge>
                                   ))}
                                 </div>
-                                <p className="text-[10px] text-muted-foreground mt-1">
-                                  {new Date(proposta.created_at).toLocaleDateString("pt-BR")}
-                                </p>
+                                <div className="flex items-center justify-between mt-1">
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {new Date(proposta.created_at).toLocaleDateString("pt-BR")}
+                                  </p>
+                                  {proposta.cliente_whatsapp && (
+                                    <a
+                                      href={formatWhatsAppUrl(proposta.cliente_whatsapp)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-green-500 hover:text-green-600 transition-colors"
+                                      onClick={(e) => e.stopPropagation()}
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                    >
+                                      <MessageCircle className="h-4 w-4" />
+                                    </a>
+                                  )}
+                                </div>
                               </Card>
                             )}
                           </Draggable>

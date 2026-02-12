@@ -10,10 +10,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { generatePDF } from "@/lib/generatePDF";
-import { Copy, FileDown, Search, Eye, Trash2 } from "lucide-react";
+import { Copy, FileDown, Search, Eye, Trash2, MessageCircle } from "lucide-react";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+function formatWhatsAppUrl(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  const number = digits.startsWith("55") ? digits : `55${digits}`;
+  return `https://wa.me/${number}`;
 }
 
 export default function Propostas() {
@@ -185,8 +191,20 @@ export default function Propostas() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><strong>Cliente:</strong> {detalhe.cliente_nome}</div>
                 <div><strong>Empresa:</strong> {detalhe.cliente_empresa || "—"}</div>
-                <div><strong>Email:</strong> {detalhe.cliente_email || "—"}</div>
-                <div><strong>WhatsApp:</strong> {detalhe.cliente_whatsapp || "—"}</div>
+                <div className="flex items-center gap-2">
+                  <strong>WhatsApp:</strong>
+                  {detalhe.cliente_whatsapp ? (
+                    <a
+                      href={formatWhatsAppUrl(detalhe.cliente_whatsapp)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-green-600 hover:text-green-700 font-medium transition-colors"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      {detalhe.cliente_whatsapp}
+                    </a>
+                  ) : "—"}
+                </div>
                 <div><strong>Valor Total:</strong> {formatCurrency(detalhe.valor_total)}</div>
                 <div><strong>Status:</strong> {STATUS_LABELS[detalhe.status as StatusProposta]}</div>
               </div>
