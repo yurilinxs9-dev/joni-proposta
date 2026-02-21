@@ -26,14 +26,39 @@ const LIGHT_GRAY = rgb(0.85, 0.85, 0.85);
 
 // ── Column positions ─────────────────────────────────────────
 const COL_NO = 55;
-const COL_DESC = 105;
-const COL_VALOR = 355;
+const COL_DESC = 98;         // extracted from template: "DESCRIÇÃO DE ITENS" header x0=97.94
+const COL_VALOR = 365;       // extracted from template: "VALOR" header x0=365.05
 const COL_QTY = 445;
 const COL_SUBTOTAL = 490;
 const MAX_DESC_WIDTH = 235;
 
+// ── Column alignment anchors — derived from pdfplumber extraction ─────────
+// Template measurements: VALOR x0=365.05 | QTY center=457.06 | SUBTOTAL center=532.27
+const TABLE_RIGHT         = 575;                                      // actual right edge (SUBTOTAL header centering: 490+575/2=532.5 ≈ 532.27)
+const COL_QTY_CENTER      = 457;                                      // template "QTY" header center = 457.06
+const COL_SUBTOTAL_CENTER = (COL_SUBTOTAL + TABLE_RIGHT) / 2;        // (490+575)/2 = 532.5 — matches "SUBTOTAL" header center 532.27
+const COL_VALOR_RIGHT     = COL_QTY - 7;                             // 438 (for discount label)
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+function drawTextRight(
+  page: ReturnType<typeof PDFDocument.prototype.getPages>[0],
+  text: string, rightX: number, y: number,
+  size: number, font: PDFFont, color: ReturnType<typeof rgb>,
+) {
+  const w = font.widthOfTextAtSize(text, size);
+  page.drawText(text, { x: rightX - w, y, size, font, color });
+}
+
+function drawTextCenter(
+  page: ReturnType<typeof PDFDocument.prototype.getPages>[0],
+  text: string, centerX: number, y: number,
+  size: number, font: PDFFont, color: ReturnType<typeof rgb>,
+) {
+  const w = font.widthOfTextAtSize(text, size);
+  page.drawText(text, { x: centerX - w / 2, y, size, font, color });
 }
 
 /**
@@ -158,15 +183,9 @@ export async function generatePDF(data: PDFData) {
     });
 
     const valorServico = servico.valor_mensal > 0 ? servico.valor_mensal : servico.valor_setup;
-    page.drawText(formatCurrency(valorServico), {
-      x: COL_VALOR, y: currentY, size: 9, font: helvetica, color: DARK,
-    });
-    page.drawText("1", {
-      x: COL_QTY + 5, y: currentY, size: 9, font: helvetica, color: DARK,
-    });
-    page.drawText(formatCurrency(valorServico), {
-      x: COL_SUBTOTAL, y: currentY, size: 9, font: helvetica, color: DARK,
-    });
+    page.drawText(formatCurrency(valorServico), { x: COL_VALOR, y: currentY, size: 9, font: helvetica, color: DARK });
+    drawTextCenter(page, "1", COL_QTY_CENTER, currentY, 9, helvetica, DARK);
+    drawTextCenter(page, formatCurrency(valorServico), COL_SUBTOTAL_CENTER, currentY, 9, helvetica, DARK);
 
     currentY -= lineHeight + 3;
 
@@ -218,21 +237,13 @@ export async function generatePDF(data: PDFData) {
         ? (data.valorMensal + data.valorSetup) * (data.descontoValor / 100)
         : data.descontoValor;
 
-    page.drawText(descontoLabel, {
-      x: COL_VALOR, y: currentY, size: 9, font: helvetica, color: RED,
-    });
-    page.drawText(`-${formatCurrency(descontoAmount)}`, {
-      x: COL_SUBTOTAL, y: currentY, size: 9, font: helvetica, color: RED,
-    });
+    drawTextRight(page, descontoLabel, COL_VALOR_RIGHT, currentY, 9, helvetica, RED);
+    drawTextCenter(page, `-${formatCurrency(descontoAmount)}`, COL_SUBTOTAL_CENTER, currentY, 9, helvetica, RED);
     currentY -= lineHeight + 8;
   }
 
-  page.drawText("TOTAL:", {
-    x: COL_VALOR + 30, y: currentY, size: 11, font: helveticaBold, color: DARK,
-  });
-  page.drawText(formatCurrency(data.valorTotal), {
-    x: COL_SUBTOTAL, y: currentY, size: 11, font: helveticaBold, color: GOLD,
-  });
+  page.drawText("TOTAL:", { x: COL_VALOR, y: currentY, size: 11, font: helveticaBold, color: DARK });
+  drawTextCenter(page, formatCurrency(data.valorTotal), COL_SUBTOTAL_CENTER, currentY, 11, helveticaBold, GOLD);
 
   // ══════════════════════════════════════════════════════════════
   // SAVE & DOWNLOAD
