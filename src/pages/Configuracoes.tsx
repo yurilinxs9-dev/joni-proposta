@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -126,23 +127,38 @@ export default function Configuracoes() {
     }
 
     setIsConnecting(true);
-    exchangeCode.mutate(
-      { code, code_verifier: codeVerifier },
-      {
-        onSuccess: (data) => {
-          toast({
-            title: "Google Agenda conectada!",
-            description: data.email ? `Conectado como ${data.email}` : "Conta conectada com sucesso.",
-          });
-          setIsConnecting(false);
-          handleSync();
+
+    // Wait for Supabase session to be restored from localStorage before
+    // calling the edge function — avoids 401 on page load after OAuth redirect
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        toast({
+          title: "Sessão expirada",
+          description: "Faça login novamente e tente conectar.",
+          variant: "destructive",
+        });
+        setIsConnecting(false);
+        return;
+      }
+
+      exchangeCode.mutate(
+        { code, code_verifier: codeVerifier },
+        {
+          onSuccess: (data) => {
+            toast({
+              title: "Google Agenda conectada!",
+              description: data.email ? `Conectado como ${data.email}` : "Conta conectada com sucesso.",
+            });
+            setIsConnecting(false);
+            handleSync();
+          },
+          onError: (error: Error) => {
+            toast({ title: "Erro ao conectar", description: error.message, variant: "destructive" });
+            setIsConnecting(false);
+          },
         },
-        onError: (error: Error) => {
-          toast({ title: "Erro ao conectar", description: error.message, variant: "destructive" });
-          setIsConnecting(false);
-        },
-      },
-    );
+      );
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Actions ────────────────────────────────────────────────────────────────
