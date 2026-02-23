@@ -105,13 +105,14 @@ Deno.serve(async (req) => {
         .eq("user_id", user.id);
     }
 
-    // ── 4. Fetch calendar events (next 30 days) ────────────────────────────
+    // ── 4. Fetch calendar events (last 7 days + next 30 days) ─────────────
     const now = new Date();
+    const past = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const calResponse = await fetch(
       `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-        `timeMin=${now.toISOString()}&timeMax=${future.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=250`,
+        `timeMin=${past.toISOString()}&timeMax=${future.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=250`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
 
