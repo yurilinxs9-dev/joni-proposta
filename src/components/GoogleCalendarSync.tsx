@@ -1,48 +1,52 @@
 import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useGoogleIntegration, useSyncGoogleCalendar } from "@/hooks/useGoogleCalendar";
 
-const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutos
+const SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
+/**
+ * Invisible background component that auto-syncs Google Calendar every 5 minutes.
+ * Token refresh is handled server-side in the edge function — no action needed here.
+ */
 export function GoogleCalendarSync() {
   const { data: integration } = useGoogleIntegration();
   const syncCalendar = useSyncGoogleCalendar();
+  const qc = useQueryClient();
   const lastSyncRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!integration?.enabled || !integration?.access_token) return;
+    if (!integration?.enabled) return;
 
-    // Função de sincronização
     const doSync = () => {
       const now = Date.now();
-      // Evitar sincronizações muito próximas
-      if (now - lastSyncRef.current < SYNC_INTERVAL - 10000) return;
-
+      if (now - lastSyncRef.current < SYNC_INTERVAL - 10_000) return;
       lastSyncRef.current = now;
-      syncCalendar.mutate(integration.access_token, {
-        onError: (error) => {
-          console.error("Erro na sincronização automática:", error);
+
+      syncCalendar.mutate(undefined, {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: ["agenda_events"] });
+          qc.invalidateQueries({ queryKey: ["google_integration"] });
+        },
+        onError: (error: Error) => {
+          if (error.message === "TOKEN_EXPIRED") {
+            // Let the integration query refresh to show "needsReconnect" state in UI
+            qc.invalidateQueries({ queryKey: ["google_integration"] });
+          } else {
+            console.error("[GoogleCalendarSync] Auto-sync error:", error.message);
+          }
         },
       });
     };
 
-    // Sincronizar imediatamente se última sincronização foi há mais de 5 minutos
-    if (integration.last_sync) {
-      const lastSync = new Date(integration.last_sync).getTime();
-      const timeSinceLastSync = Date.now() - lastSync;
-      if (timeSinceLastSync > SYNC_INTERVAL) {
-        doSync();
-      }
-    } else {
-      // Nunca sincronizou, fazer agora
+    // Sync immediately if last sync was more than 5 minutes ago (or never)
+    const lastSync = integration.last_sync ? new Date(integration.last_sync).getTime() : 0;
+    if (Date.now() - lastSync > SYNC_INTERVAL) {
       doSync();
     }
 
-    // Configurar intervalo
     const interval = setInterval(doSync, SYNC_INTERVAL);
-
     return () => clearInterval(interval);
-  }, [integration?.enabled, integration?.access_token, integration?.last_sync]);
+  }, [integration?.enabled, integration?.last_sync]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Componente invisível
   return null;
 }

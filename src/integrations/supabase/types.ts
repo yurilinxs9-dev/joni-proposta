@@ -169,6 +169,27 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          key: string
+          value: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          value?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          value?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       google_integrations: {
         Row: {
           id: string
@@ -179,6 +200,7 @@ export type Database = {
           calendar_id: string
           last_sync: string | null
           enabled: boolean
+          google_email: string | null
           created_at: string
           updated_at: string
         }
@@ -191,6 +213,7 @@ export type Database = {
           calendar_id?: string
           last_sync?: string | null
           enabled?: boolean
+          google_email?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -203,6 +226,7 @@ export type Database = {
           calendar_id?: string
           last_sync?: string | null
           enabled?: boolean
+          google_email?: string | null
           created_at?: string
           updated_at?: string
         }
