@@ -128,21 +128,9 @@ export default function Configuracoes() {
 
     setIsConnecting(true);
 
-    // Wait for Supabase session to be restored from localStorage before
-    // calling the edge function — avoids 401 on page load after OAuth redirect
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        toast({
-          title: "Sessão expirada",
-          description: "Faça login novamente e tente conectar.",
-          variant: "destructive",
-        });
-        setIsConnecting(false);
-        return;
-      }
-
+    const callExchange = (accessToken: string) => {
       exchangeCode.mutate(
-        { code, code_verifier: codeVerifier, access_token: session.access_token },
+        { code, code_verifier: codeVerifier, access_token: accessToken },
         {
           onSuccess: (data) => {
             toast({
@@ -158,6 +146,28 @@ export default function Configuracoes() {
           },
         },
       );
+    };
+
+    // refreshSession() forces a network call to get a guaranteed-fresh access token.
+    // getSession() alone may return a cached, potentially expired token from localStorage.
+    supabase.auth.refreshSession().then(({ data: { session: refreshed }, error: refreshErr }) => {
+      if (!refreshErr && refreshed?.access_token) {
+        callExchange(refreshed.access_token);
+        return;
+      }
+      // Fallback: try getSession if refresh fails (e.g. no refresh_token in storage)
+      supabase.auth.getSession().then(({ data: { session: cached } }) => {
+        if (!cached?.access_token) {
+          toast({
+            title: "Sessão expirada",
+            description: "Faça login novamente e tente conectar.",
+            variant: "destructive",
+          });
+          setIsConnecting(false);
+          return;
+        }
+        callExchange(cached.access_token);
+      });
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -1,1 +1,7 @@
 project_id = "otswpnzlvdwuvpbvuzub"
+
+[functions.google-oauth-exchange]
+verify_jwt = false
+
+[functions.google-sync-calendar]
+verify_jwt = false

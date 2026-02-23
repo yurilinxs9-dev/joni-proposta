@@ -118,6 +118,8 @@ export function useAgendaEvents() {
 }
 
 // ── Hook: exchange OAuth code → tokens (via edge function) ────────────────────
+// Uses direct fetch() instead of supabase.functions.invoke() to guarantee the
+// Authorization header is not overridden by the Supabase client's internal state.
 export function useExchangeGoogleCode() {
   const qc = useQueryClient();
 
@@ -129,16 +131,27 @@ export function useExchangeGoogleCode() {
     }: {
       code: string;
       code_verifier: string;
-      access_token: string; // passed explicitly to avoid 401 race on fresh page load after OAuth redirect
+      access_token: string;
     }) => {
       const redirect_uri = `${window.location.origin}/configuracoes`;
+      const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string) || "";
+      const supabaseKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) || "";
 
-      const { data, error } = await supabase.functions.invoke("google-oauth-exchange", {
-        body: { code, redirect_uri, code_verifier },
-        headers: { Authorization: `Bearer ${access_token}` },
+      const response = await fetch(`${supabaseUrl}/functions/v1/google-oauth-exchange`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${access_token}`,
+          "apikey": supabaseKey,
+        },
+        body: JSON.stringify({ code, redirect_uri, code_verifier }),
       });
 
-      if (error) throw new Error(error.message);
+      if (!response.ok) {
+        throw new Error(`Erro HTTP ${response.status} ao chamar a edge function`);
+      }
+
+      const data = await response.json();
       if (!data?.success) throw new Error(data?.error || "Erro ao conectar com Google");
 
       return data as { success: true; email: string | null };
