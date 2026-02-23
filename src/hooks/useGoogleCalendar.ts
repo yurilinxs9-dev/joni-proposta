@@ -125,14 +125,17 @@ export function useExchangeGoogleCode() {
     mutationFn: async ({
       code,
       code_verifier,
+      access_token,
     }: {
       code: string;
       code_verifier: string;
+      access_token: string; // passed explicitly to avoid 401 race on fresh page load after OAuth redirect
     }) => {
       const redirect_uri = `${window.location.origin}/configuracoes`;
 
       const { data, error } = await supabase.functions.invoke("google-oauth-exchange", {
         body: { code, redirect_uri, code_verifier },
+        headers: { Authorization: `Bearer ${access_token}` },
       });
 
       if (error) throw new Error(error.message);

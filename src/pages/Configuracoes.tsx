@@ -142,7 +142,7 @@ export default function Configuracoes() {
       }
 
       exchangeCode.mutate(
-        { code, code_verifier: codeVerifier },
+        { code, code_verifier: codeVerifier, access_token: session.access_token },
         {
           onSuccess: (data) => {
             toast({
