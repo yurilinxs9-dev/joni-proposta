@@ -36,7 +36,7 @@ const MAX_DESC_WIDTH = 235;
 // Template measurements: VALOR x0=365.05 x1=399.20 | QTY center=457.06 | SUBTOTAL center=532.27
 const TABLE_RIGHT         = 575;                                      // actual right edge (SUBTOTAL header centering: 490+575/2=532.5 ≈ 532.27)
 const COL_VALOR_CENTER    = 382;                                      // template "VALOR" header center = (365.05+399.20)/2 = 382.125
-const COL_QTY_CENTER      = 467.5;                                    // center of QTY column cell (445–490)/2 = 467.5
+const COL_QTY_CENTER      = 471;                                      // center of QTY column cell shifted right for visual alignment
 const COL_SUBTOTAL_CENTER = (COL_SUBTOTAL + TABLE_RIGHT) / 2;        // (490+575)/2 = 532.5 — matches "SUBTOTAL" header center 532.27
 const COL_VALOR_RIGHT     = COL_QTY - 7;                             // 438 (for discount label)
 
