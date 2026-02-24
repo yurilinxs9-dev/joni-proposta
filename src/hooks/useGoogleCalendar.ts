@@ -30,6 +30,11 @@ export interface AgendaEvent {
   data_evento: string;
   proposta_id: string | null;
   status: string; // 'pendente' | 'vinculado' | 'ignorado'
+  descricao: string | null;
+  participantes: string[] | null;
+  local: string | null;
+  meet_link: string | null;
+  duracao_min: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -261,6 +266,22 @@ export function useIgnoreEvent() {
       const { error } = await supabase
         .from("agenda_events")
         .update({ status: "ignorado" })
+        .eq("id", eventId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["agenda_events"] }),
+  });
+}
+
+// ── Hook: unignore event (reset to pendente) ──────────────────────────────────
+export function useUnignoreEvent() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (eventId: string) => {
+      const { error } = await supabase
+        .from("agenda_events")
+        .update({ status: "pendente" })
         .eq("id", eventId);
       if (error) throw error;
     },

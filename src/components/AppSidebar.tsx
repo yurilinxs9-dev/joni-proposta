@@ -1,6 +1,7 @@
 import { LayoutDashboard, FilePlus, FileText, Columns3, LogOut, BarChart3, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/hooks/useAuth";
+import { useAgendaEvents, useGoogleIntegration } from "@/hooks/useGoogleCalendar";
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +30,12 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
 
+  const { data: integration } = useGoogleIntegration();
+  const { data: events = [] } = useAgendaEvents();
+  const pendingCount = integration?.enabled
+    ? events.filter((e) => e.status === "pendente").length
+    : 0;
+
   return (
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="p-4">
@@ -55,21 +62,36 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <NavLink
-                      to={item.url}
-                      end={item.url === "/"}
-                      className="rounded-lg px-3 py-2.5 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold shadow-sm"
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {navItems.map((item) => {
+                const isConfig = item.url === "/configuracoes";
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild tooltip={item.title}>
+                      <NavLink
+                        to={item.url}
+                        end={item.url === "/"}
+                        className="rounded-lg px-3 py-2.5 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold shadow-sm"
+                      >
+                        <div className="relative">
+                          <item.icon className="h-4 w-4" />
+                          {isConfig && pendingCount > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                              {pendingCount > 9 ? "9+" : pendingCount}
+                            </span>
+                          )}
+                        </div>
+                        <span>{item.title}</span>
+                        {isConfig && pendingCount > 0 && !collapsed && (
+                          <span className="ml-auto h-5 min-w-5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+                            {pendingCount > 9 ? "9+" : pendingCount}
+                          </span>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

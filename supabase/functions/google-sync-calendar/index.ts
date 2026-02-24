@@ -1,22 +1,41 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../shared/cors.ts";
 
-// ── Event title parser ────────────────────────────────────────────────────────
+// ── Internal-meeting keywords (skip these) ────────────────────────────────────
+const INTERNAL_KEYWORDS = [
+  "lideranca", "liderança", "equipe", "time", "interna", "interno",
+  "diretoria", "gestão", "gestao", "1:1", "one on one", "onboarding",
+  "all hands", "alinhamento interno", "retrospectiva", "sprint",
+];
+
+// ── Client-meeting patterns (order matters — more specific first) ──────────────
+const CLIENT_PATTERNS: RegExp[] = [
+  /reuni[aã]o\s+(?:com\s+)?(.+)/i,
+  /apresenta[cç][aã]o\s+(?:para\s+|a\s+|com\s+)?(.+)/i,
+  /demo\s+(?:com\s+|para\s+)?(.+)/i,
+  /visita\s+(?:a\s+|ao?\s+)?(.+)/i,
+  /call\s+(?:com\s+)?(.+)/i,
+  /meeting\s+(?:with\s+|com\s+)?(.+)/i,
+];
+
 function parseEventTitle(titulo: string): { isReuniao: boolean; cliente: string | null } {
   const lower = titulo.toLowerCase();
-  if (!lower.includes("reuniao") && !lower.includes("reunião")) {
-    return { isReuniao: false, cliente: null };
-  }
-  const internos = [
-    "lideranca", "liderança", "equipe", "time", "interna", "interno",
-    "diretoria", "gestão", "gestao",
-  ];
-  if (internos.some((p) => lower.includes(p))) {
+
+  // Skip purely internal meetings
+  if (INTERNAL_KEYWORDS.some((kw) => lower.includes(kw))) {
     return { isReuniao: true, cliente: null };
   }
-  const match = titulo.match(/reuni[aã]o\s+(.+)/i);
-  if (match) return { isReuniao: true, cliente: match[1].trim() };
-  return { isReuniao: true, cliente: null };
+
+  for (const pattern of CLIENT_PATTERNS) {
+    const match = titulo.match(pattern);
+    if (match) {
+      const cliente = match[1].trim().replace(/[()[\]]/g, "").trim();
+      if (cliente.length < 2) return { isReuniao: true, cliente: null };
+      return { isReuniao: true, cliente };
+    }
+  }
+
+  return { isReuniao: false, cliente: null };
 }
 
 // ── Token refresh ─────────────────────────────────────────────────────────────
@@ -36,6 +55,26 @@ async function refreshGoogleToken(refreshToken: string) {
     throw new Error(err.error_description || "Falha ao renovar token");
   }
   return response.json() as Promise<{ access_token: string; expires_in: number }>;
+}
+
+// ── Extract Google Meet link from event ───────────────────────────────────────
+function extractMeetLink(event: Record<string, unknown>): string | null {
+  if (event.hangoutLink) return event.hangoutLink as string;
+  const conf = event.conferenceData as Record<string, unknown> | undefined;
+  if (conf?.entryPoints) {
+    const points = conf.entryPoints as Array<Record<string, string>>;
+    const video = points.find((ep) => ep.entryPointType === "video");
+    if (video?.uri) return video.uri;
+  }
+  return null;
+}
+
+// ── Calculate duration in minutes ────────────────────────────────────────────
+function calcDuration(event: Record<string, unknown>): number | null {
+  const start = (event.start as Record<string, string>)?.dateTime;
+  const end = (event.end as Record<string, string>)?.dateTime;
+  if (!start || !end) return null;
+  return Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60_000);
 }
 
 Deno.serve(async (req) => {
@@ -88,7 +127,6 @@ Deno.serve(async (req) => {
 
     if (isExpired) {
       if (!integration.refresh_token) {
-        // Permanent token expiry with no refresh token (old implicit-grant sessions)
         await supabaseAdmin
           .from("google_integrations")
           .update({ enabled: false })
@@ -137,7 +175,7 @@ Deno.serve(async (req) => {
       const parsed = parseEventTitle(event.summary);
       if (!parsed.isReuniao || !parsed.cliente) continue;
 
-      const dataEvento = event.start.dateTime ?? event.start.date ?? now.toISOString();
+      const dataEvento = event.start?.dateTime ?? event.start?.date ?? now.toISOString();
 
       const { data: existing } = await supabaseAdmin
         .from("agenda_events")
@@ -145,6 +183,17 @@ Deno.serve(async (req) => {
         .eq("user_id", user.id)
         .eq("google_event_id", event.id)
         .maybeSingle();
+
+      // Extract enrichment data
+      const participantes: string[] = (event.attendees ?? [])
+        .map((a: Record<string, string>) => a.email)
+        .filter(Boolean);
+      const meetLink = extractMeetLink(event);
+      const duracaoMin = calcDuration(event);
+      const descricao = event.description
+        ? String(event.description).replace(/<[^>]*>/g, "").slice(0, 500)
+        : null;
+      const local = event.location ?? null;
 
       if (!existing) {
         await supabaseAdmin.from("agenda_events").insert({
@@ -154,8 +203,19 @@ Deno.serve(async (req) => {
           cliente_detectado: parsed.cliente,
           data_evento: dataEvento,
           status: "pendente",
+          descricao,
+          participantes,
+          local,
+          meet_link: meetLink,
+          duracao_min: duracaoMin,
         });
         newCount++;
+      } else {
+        // Update enrichment fields even for existing events (in case they changed)
+        await supabaseAdmin
+          .from("agenda_events")
+          .update({ descricao, participantes, local, meet_link: meetLink, duracao_min: duracaoMin })
+          .eq("id", existing.id);
       }
     }
 

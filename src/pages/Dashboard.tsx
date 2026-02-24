@@ -1,8 +1,12 @@
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { usePropostas } from "@/hooks/usePropostas";
+import { useAgendaEvents, useGoogleIntegration } from "@/hooks/useGoogleCalendar";
 import { STATUS_LABELS, type StatusProposta } from "@/types/proposta";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { DollarSign, TrendingUp, FileText, Target } from "lucide-react";
+import { DollarSign, TrendingUp, FileText, Target, Calendar, Video, MapPin, Clock, Users, ChevronRight } from "lucide-react";
 
 // Colors matching the Kanban columns (funnel stages)
 const PIE_COLORS = [
@@ -17,8 +21,21 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function isUpcoming(iso: string) {
+  return new Date(iso) >= new Date();
+}
+
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { data: propostas = [], isLoading } = usePropostas();
+  const { data: integration } = useGoogleIntegration();
+  const { data: events = [] } = useAgendaEvents();
 
   const now = new Date();
   const mesAtual = propostas.filter((p) => {
@@ -37,6 +54,17 @@ export default function Dashboard() {
   }));
 
   const barData = statusCounts.filter((s) => s.value > 0);
+
+  // Upcoming meetings (pendente + future date, next 7 days)
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const upcomingMeetings = events
+    .filter((e) => e.status === "pendente" && isUpcoming(e.data_evento))
+    .filter((e) => new Date(e.data_evento) <= nextWeek)
+    .sort((a, b) => new Date(a.data_evento).getTime() - new Date(b.data_evento).getTime())
+    .slice(0, 4);
+
+  // All pending (for badge count in widget header)
+  const totalPending = events.filter((e) => e.status === "pendente").length;
 
   if (isLoading) {
     return (
@@ -110,6 +138,96 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Google Calendar widget — only if connected and has upcoming meetings */}
+      {integration?.enabled && (upcomingMeetings.length > 0 || totalPending > 0) && (
+        <Card className="border-0 shadow-md overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-blue-500" />
+                Próximas Reuniões
+                {totalPending > 0 && (
+                  <Badge className="bg-amber-500/10 text-amber-700 border-amber-200 text-xs">
+                    {totalPending} pendente{totalPending > 1 ? "s" : ""}
+                  </Badge>
+                )}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-xs text-muted-foreground"
+                onClick={() => navigate("/configuracoes")}
+              >
+                Ver todas <ChevronRight className="h-3 w-3" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {upcomingMeetings.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Nenhuma reunião nos próximos 7 dias
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {upcomingMeetings.map((event) => (
+                  <div
+                    key={event.id}
+                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted/60 transition-colors"
+                  >
+                    <div className="p-1.5 rounded-lg bg-blue-500/10 shrink-0 mt-0.5">
+                      <Calendar className="h-3.5 w-3.5 text-blue-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{event.cliente_detectado}</p>
+                      <p className="text-xs text-muted-foreground truncate">{event.titulo}</p>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {formatDate(event.data_evento)}
+                          {event.duracao_min && ` · ${event.duracao_min}min`}
+                        </span>
+                        {event.meet_link && (
+                          <a
+                            href={event.meet_link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1 text-xs text-blue-500 hover:underline"
+                          >
+                            <Video className="h-3 w-3" />
+                            Meet
+                          </a>
+                        )}
+                        {event.local && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3" />
+                            {event.local}
+                          </span>
+                        )}
+                        {event.participantes && event.participantes.length > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Users className="h-3 w-3" />
+                            {event.participantes.length} participante{event.participantes.length > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 h-7 text-xs"
+                      onClick={() => navigate("/configuracoes")}
+                    >
+                      Criar lead
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts */}
       <div className="grid gap-5 md:grid-cols-2">

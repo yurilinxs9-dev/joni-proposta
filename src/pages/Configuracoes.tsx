@@ -17,6 +17,7 @@ import {
   useSyncGoogleCalendar,
   useCreatePropostaFromEvent,
   useIgnoreEvent,
+  useUnignoreEvent,
   initiateGoogleOAuth,
   type AgendaEvent,
 } from "@/hooks/useGoogleCalendar";
@@ -29,6 +30,7 @@ import {
   User,
   Plus,
   EyeOff,
+  Eye,
   AlertTriangle,
   Loader2,
   Mail,
@@ -43,6 +45,9 @@ import {
   Circle,
   Key,
   ExternalLink,
+  Video,
+  MapPin,
+  Users,
 } from "lucide-react";
 
 // ── Small helper: time-ago label ──────────────────────────────────────────────
@@ -90,6 +95,7 @@ export default function Configuracoes() {
   const syncCalendar = useSyncGoogleCalendar();
   const createPropostaFromEvent = useCreatePropostaFromEvent();
   const ignoreEvent = useIgnoreEvent();
+  const unignoreEvent = useUnignoreEvent();
 
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -255,6 +261,7 @@ export default function Configuracoes() {
   const needsReconnect = !!integration && !integration.enabled;
   const pendingEvents = events.filter((e) => e.status === "pendente");
   const linkedEvents = events.filter((e) => e.status === "vinculado");
+  const ignoredEvents = events.filter((e) => e.status === "ignorado");
 
   // Admin checklist status
   const hasClientId = !!googleClientId;
@@ -445,37 +452,66 @@ export default function Configuracoes() {
               {pendingEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors"
+                  className="p-3 border rounded-lg hover:bg-muted/30 transition-colors space-y-2"
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{event.cliente_detectado}</p>
-                    <p className="text-xs text-muted-foreground truncate">{event.titulo}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      📅{" "}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold truncate">{event.cliente_detectado}</p>
+                      <p className="text-xs text-muted-foreground truncate">{event.titulo}</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        onClick={() => handleCreateProposta(event)}
+                        disabled={createPropostaFromEvent.isPending}
+                        className="gap-1"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Criar lead
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleIgnore(event)}
+                        title="Ignorar"
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <EyeOff className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  {/* Extra metadata row */}
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
                       {new Date(event.data_evento).toLocaleString("pt-BR", {
                         day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
                       })}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 ml-3 shrink-0">
-                    <Button
-                      size="sm"
-                      onClick={() => handleCreateProposta(event)}
-                      disabled={createPropostaFromEvent.isPending}
-                      className="gap-1"
-                    >
-                      <Plus className="h-3 w-3" />
-                      Criar lead
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleIgnore(event)}
-                      title="Ignorar"
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <EyeOff className="h-4 w-4" />
-                    </Button>
+                      {event.duracao_min && ` · ${event.duracao_min}min`}
+                    </span>
+                    {event.meet_link && (
+                      <a
+                        href={event.meet_link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-xs text-blue-500 hover:underline"
+                      >
+                        <Video className="h-3 w-3" />
+                        Meet
+                      </a>
+                    )}
+                    {event.local && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        {event.local}
+                      </span>
+                    )}
+                    {event.participantes && event.participantes.length > 0 && (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Users className="h-3 w-3" />
+                        {event.participantes.length} participante{event.participantes.length > 1 ? "s" : ""}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -510,6 +546,50 @@ export default function Configuracoes() {
                   <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 text-xs">
                     Proposta criada
                   </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Ignored events */}
+      {isConnected && ignoredEvents.length > 0 && (
+        <Card className="border-0 shadow-md">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <EyeOff className="h-4 w-4 text-muted-foreground" />
+              Ignorados ({ignoredEvents.length})
+            </CardTitle>
+            <CardDescription>Eventos marcados como ignorados — clique em "Desfazer" para reativar</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1.5">
+              {ignoredEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center justify-between p-2.5 text-sm bg-muted/30 border border-muted rounded-lg"
+                >
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium text-muted-foreground">{event.cliente_detectado || event.titulo}</span>
+                    <span className="ml-2 text-xs text-muted-foreground/70">
+                      {new Date(event.data_evento).toLocaleDateString("pt-BR")}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 h-7 text-xs shrink-0"
+                    onClick={() =>
+                      unignoreEvent.mutate(event.id, {
+                        onSuccess: () => toast({ title: "Evento reativado", description: "Voltou para pendentes." }),
+                      })
+                    }
+                    disabled={unignoreEvent.isPending}
+                  >
+                    <Eye className="h-3 w-3" />
+                    Desfazer
+                  </Button>
                 </div>
               ))}
             </div>
