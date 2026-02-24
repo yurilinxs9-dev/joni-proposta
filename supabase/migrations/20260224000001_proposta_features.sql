@@ -1,7 +1,6 @@
 -- ── Novas colunas em propostas ───────────────────────────────────────────────
 ALTER TABLE propostas
-  ADD COLUMN IF NOT EXISTS public_token  TEXT UNIQUE DEFAULT gen_random_uuid()::text,
-  ADD COLUMN IF NOT EXISTS validade_dias INTEGER DEFAULT 30;
+  ADD COLUMN IF NOT EXISTS public_token TEXT UNIQUE DEFAULT gen_random_uuid()::text;
 
 -- Garante que propostas existentes recebam token
 UPDATE propostas SET public_token = gen_random_uuid()::text WHERE public_token IS NULL;

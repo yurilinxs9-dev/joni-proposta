@@ -59,14 +59,6 @@ function formatWhatsAppUrl(phone: string, clienteNome?: string) {
   return `https://wa.me/${number}${msg ? `?text=${msg}` : ""}`;
 }
 
-function getValidadeStatus(p: any): { expired: boolean; days: number } | null {
-  if (!p.validade_dias || !p.created_at) return null;
-  const expiresAt = new Date(p.created_at);
-  expiresAt.setDate(expiresAt.getDate() + p.validade_dias);
-  const diffDays = Math.ceil((expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
-  if (diffDays > 3) return null;
-  return { expired: diffDays < 0, days: diffDays };
-}
 
 const TIPO_LABELS: Record<AtividadeTipo, string> = {
   nota: "Nota",
@@ -217,12 +209,6 @@ export default function Propostas() {
       valor_setup: s.valor_setup,
       selecionado: true,
     }));
-    let dataValidade: string | undefined;
-    if (p.validade_dias) {
-      const d = new Date(p.created_at);
-      d.setDate(d.getDate() + p.validade_dias);
-      dataValidade = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
-    }
     await generatePDF({
       clienteNome: p.cliente_nome,
       clienteEmpresa: p.cliente_empresa || "",
@@ -234,7 +220,6 @@ export default function Propostas() {
       valorTotal: p.valor_total,
       descontoTipo: p.desconto_tipo || "percentual",
       descontoValor: p.desconto_valor || 0,
-      dataValidade,
     });
   };
 
@@ -345,20 +330,9 @@ export default function Propostas() {
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">{p.cliente_empresa || "—"}</TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-1 items-start">
-                          <Badge variant="outline" className={STATUS_COLORS[p.status as StatusProposta]}>
-                            {STATUS_LABELS[p.status as StatusProposta]}
-                          </Badge>
-                          {(() => {
-                            const vs = getValidadeStatus(p);
-                            if (!vs) return null;
-                            return (
-                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${vs.expired ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
-                                {vs.expired ? "Expirada" : `${vs.days}d restante${vs.days !== 1 ? "s" : ""}`}
-                              </span>
-                            );
-                          })()}
-                        </div>
+                        <Badge variant="outline" className={STATUS_COLORS[p.status as StatusProposta]}>
+                          {STATUS_LABELS[p.status as StatusProposta]}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right font-medium hidden sm:table-cell">{formatCurrency(p.valor_total)}</TableCell>
                       <TableCell className="hidden md:table-cell">{new Date(p.created_at).toLocaleDateString("pt-BR")}</TableCell>

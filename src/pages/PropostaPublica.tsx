@@ -18,21 +18,10 @@ import { useGetPropostaByToken, useAceitarProposta } from "@/hooks/usePropostas"
 import { registrarVisualizacao, registrarAceite } from "@/hooks/useAtividades";
 import { generatePDF } from "@/lib/generatePDF";
 import { STATUS_LABELS, STATUS_COLORS } from "@/types/proposta";
-import { FileDown, CheckCircle, Clock, AlertTriangle, FileX } from "lucide-react";
+import { FileDown, CheckCircle, FileX } from "lucide-react";
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-}
-
-function calcDataValidade(createdAt: string, validadeDias: number | null | undefined): Date | null {
-  if (!validadeDias) return null;
-  const d = new Date(createdAt);
-  d.setDate(d.getDate() + validadeDias);
-  return d;
-}
-
-function formatDateLong(d: Date): string {
-  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
 export default function PropostaPublica() {
@@ -70,8 +59,6 @@ export default function PropostaPublica() {
       temSetup: s.valor_setup > 0,
     }));
 
-    const validadeDate = calcDataValidade(proposta.created_at, proposta.validade_dias);
-
     await generatePDF({
       clienteNome: proposta.cliente_nome,
       clienteEmpresa: proposta.cliente_empresa || "",
@@ -83,7 +70,6 @@ export default function PropostaPublica() {
       valorTotal: proposta.valor_total,
       descontoTipo: proposta.desconto_tipo || "",
       descontoValor: proposta.desconto_valor || 0,
-      dataValidade: validadeDate ? formatDateLong(validadeDate) : undefined,
     });
   };
 
@@ -115,8 +101,6 @@ export default function PropostaPublica() {
     );
   }
 
-  const validadeDate = calcDataValidade(proposta.created_at, proposta.validade_dias);
-  const isExpirada = validadeDate ? new Date() > validadeDate : false;
   const isJaAceita = proposta.status === "fechado" || aceita;
 
   // ── Já aceita ────────────────────────────────────────────────────────────────
@@ -167,26 +151,11 @@ export default function PropostaPublica() {
 
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
 
-        {/* ── Status / Validade banner ── */}
+        {/* ── Status banner ── */}
         <div className="flex flex-wrap items-center gap-3">
           <Badge className={STATUS_COLORS[proposta.status]}>
             {STATUS_LABELS[proposta.status]}
           </Badge>
-
-          {validadeDate && (
-            <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${
-              isExpirada
-                ? "bg-red-50 text-red-700 border-red-200"
-                : "bg-emerald-50 text-emerald-700 border-emerald-200"
-            }`}>
-              {isExpirada
-                ? <AlertTriangle className="h-3 w-3" />
-                : <Clock className="h-3 w-3" />}
-              {isExpirada
-                ? "Proposta expirada"
-                : `Válida até ${formatDateLong(validadeDate)}`}
-            </div>
-          )}
 
           {isJaAceita && (
             <div className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -293,7 +262,7 @@ export default function PropostaPublica() {
 
         {/* ── Ações ── */}
         <div className="flex flex-col sm:flex-row gap-3 pb-8">
-          {!isJaAceita && !isExpirada && (
+          {!isJaAceita && (
             <Button
               className="flex-1 h-12 text-base font-bold bg-[#D8A613] hover:bg-amber-600 text-white border-0 shadow-lg shadow-amber-500/20"
               onClick={() => setShowAceitarDialog(true)}

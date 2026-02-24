@@ -91,7 +91,6 @@ export function useCreateProposta() {
       desconto_valor?: number;
       observacoes?: string;
       criado_por?: string;
-      validade_dias?: number;
       servicos: { servico_nome: string; descricao: string; valor_mensal: number; valor_setup: number }[];
     }) => {
       const { servicos, ...propostaData } = proposta;
@@ -152,7 +151,6 @@ export function useUpdatePropostaCompleta() {
       desconto_tipo?: string;
       desconto_valor?: number;
       observacoes?: string;
-      validade_dias?: number;
       servicos: { servico_nome: string; descricao: string; valor_mensal: number; valor_setup: number }[];
     }) => {
       const { id, servicos, ...propostaData } = proposta;

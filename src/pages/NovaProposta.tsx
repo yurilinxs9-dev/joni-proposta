@@ -58,7 +58,6 @@ export default function NovaProposta() {
   const [clienteEmpresa, setClienteEmpresa] = useState(leadEmpresa);
   const [clienteWhatsapp, setClienteWhatsapp] = useState(leadWhatsapp);
   const [servicos, setServicos] = useState<ServicoComId[]>([]);
-  const [validadeDias, setValidadeDias] = useState("30");
   const [descontoTipo, setDescontoTipo] = useState<"percentual" | "fixo">("percentual");
   const [descontoValor, setDescontoValor] = useState(0);
   const [observacoes, setObservacoes] = useState("");
@@ -195,8 +194,6 @@ export default function NovaProposta() {
         valor_setup: s.valor_setup,
       }));
 
-      const validadeDiasNum = parseInt(validadeDias);
-
       if (isEditingLead) {
         // Atualizar proposta existente (lead da agenda)
         await updatePropostaCompleta.mutateAsync({
@@ -210,7 +207,6 @@ export default function NovaProposta() {
           desconto_tipo: descontoTipo,
           desconto_valor: descontoValor,
           observacoes: observacoes || undefined,
-          validade_dias: validadeDiasNum,
           servicos: servicosFormatados,
         });
       } else {
@@ -226,15 +222,11 @@ export default function NovaProposta() {
           desconto_valor: descontoValor,
           observacoes: observacoes || undefined,
           criado_por: user?.id,
-          validade_dias: validadeDiasNum,
           servicos: servicosFormatados,
         });
       }
 
       if (downloadPDF) {
-        const validadeDate = new Date();
-        validadeDate.setDate(validadeDate.getDate() + validadeDiasNum);
-        const dataValidadeStr = validadeDate.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
         await generatePDF({
           clienteNome,
           clienteEmpresa,
@@ -246,7 +238,6 @@ export default function NovaProposta() {
           valorTotal,
           descontoTipo,
           descontoValor,
-          dataValidade: dataValidadeStr,
         });
       }
 
@@ -278,7 +269,6 @@ export default function NovaProposta() {
             {clienteEmpresa && <p><strong>Empresa:</strong> {clienteEmpresa}</p>}
             {clienteWhatsapp && <p><strong>WhatsApp:</strong> {clienteWhatsapp}</p>}
             <p><strong>Data:</strong> {new Date().toLocaleDateString("pt-BR")}</p>
-            <p><strong>Validade:</strong> {validadeDias} dias</p>
           </CardContent>
         </Card>
 
@@ -379,19 +369,6 @@ export default function NovaProposta() {
             <div className="space-y-2">
               <Label>WhatsApp</Label>
               <Input value={clienteWhatsapp} onChange={(e) => setClienteWhatsapp(e.target.value)} placeholder="(37) 99999-9999" />
-            </div>
-            <div className="space-y-2">
-              <Label>Validade da proposta</Label>
-              <Select value={validadeDias} onValueChange={setValidadeDias}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">7 dias</SelectItem>
-                  <SelectItem value="15">15 dias</SelectItem>
-                  <SelectItem value="30">30 dias (padrão)</SelectItem>
-                  <SelectItem value="60">60 dias</SelectItem>
-                  <SelectItem value="90">90 dias</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </CardContent>

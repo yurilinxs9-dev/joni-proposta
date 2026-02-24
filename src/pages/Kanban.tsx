@@ -238,23 +238,9 @@ export default function Kanban() {
                                     ))}
                                   </div>
                                   <div className="flex items-center justify-between mt-1">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <p className="text-[10px] text-muted-foreground">
-                                        {new Date(proposta.created_at).toLocaleDateString("pt-BR")}
-                                      </p>
-                                      {(() => {
-                                        if (!proposta.validade_dias) return null;
-                                        const expiresAt = new Date(proposta.created_at);
-                                        expiresAt.setDate(expiresAt.getDate() + proposta.validade_dias);
-                                        const diffDays = Math.ceil((expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
-                                        if (diffDays > 3) return null;
-                                        return (
-                                          <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${diffDays < 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
-                                            {diffDays < 0 ? "Expirada" : `${diffDays}d`}
-                                          </span>
-                                        );
-                                      })()}
-                                    </div>
+                                    <p className="text-[10px] text-muted-foreground">
+                                      {new Date(proposta.created_at).toLocaleDateString("pt-BR")}
+                                    </p>
                                     {proposta.cliente_whatsapp && (
                                       <a
                                         href={formatWhatsAppUrl(proposta.cliente_whatsapp, proposta.cliente_nome)}

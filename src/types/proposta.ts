@@ -144,7 +144,6 @@ export interface PropostaDB {
   observacoes: string | null;
   criado_por: string | null;
   public_token: string | null;
-  validade_dias: number | null;
   created_at: string;
   updated_at: string;
   proposta_servicos?: PropostaServicoDB[];
