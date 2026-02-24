@@ -14,6 +14,7 @@ interface PDFData {
   descontoTipo: string;
   descontoValor: number;
   propostaNumero?: string;
+  dataValidade?: string; // Ex: "15 de março de 2026"
 }
 
 // ── Colors ───────────────────────────────────────────────────
@@ -120,6 +121,12 @@ export async function generatePDF(data: PDFData) {
   page.drawText(numOrcamento, {
     x: 220, y: headerValueY, size: 8, font: helvetica, color: WHITE,
   });
+
+  if (data.dataValidade) {
+    page.drawText(`Válido até: ${data.dataValidade}`, {
+      x: 360, y: headerValueY, size: 8, font: helvetica, color: WHITE,
+    });
+  }
 
   // ══════════════════════════════════════════════════════════════
   // CLIENT NAME

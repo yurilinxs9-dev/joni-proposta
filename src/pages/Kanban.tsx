@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { usePropostas, useUpdatePropostaStatus, useDeleteProposta } from "@/hooks/usePropostas";
 import { useAgendaEvents } from "@/hooks/useGoogleCalendar";
+import { useAtividades } from "@/hooks/useAtividades";
 import { STATUS_LABELS, type StatusProposta, type PropostaDB } from "@/types/proposta";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, MessageCircle, Calendar, FilePlus, Eye, Search } from "lucide-react";
+import { Trash2, MessageCircle, Calendar, FilePlus, Eye, Search, Link2 } from "lucide-react";
 
 const COLUMNS: StatusProposta[] = ["novo_lead", "proposta_enviada", "em_negociacao", "fechado", "perdido"];
 
@@ -48,6 +49,7 @@ export default function Kanban() {
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [selectedProposta, setSelectedProposta] = useState<PropostaDB | null>(null);
+  const { data: atividades = [] } = useAtividades(selectedProposta?.id);
   const [deleteTarget, setDeleteTarget] = useState<PropostaDB | null>(null);
   const [busca, setBusca] = useState("");
 
@@ -65,6 +67,15 @@ export default function Kanban() {
 
   const isPropostaVazia = (p: PropostaDB) => {
     return (!p.proposta_servicos || p.proposta_servicos.length === 0) && p.valor_total === 0;
+  };
+
+  const handleCopyLink = (p: PropostaDB) => {
+    if (!p.public_token) {
+      toast({ title: "Link não disponível para esta proposta" });
+      return;
+    }
+    navigator.clipboard.writeText(`${window.location.origin}/p/${p.public_token}`);
+    toast({ title: "Link copiado!" });
   };
 
   const handleCriarProposta = (p: PropostaDB) => {
@@ -227,9 +238,23 @@ export default function Kanban() {
                                     ))}
                                   </div>
                                   <div className="flex items-center justify-between mt-1">
-                                    <p className="text-[10px] text-muted-foreground">
-                                      {new Date(proposta.created_at).toLocaleDateString("pt-BR")}
-                                    </p>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <p className="text-[10px] text-muted-foreground">
+                                        {new Date(proposta.created_at).toLocaleDateString("pt-BR")}
+                                      </p>
+                                      {(() => {
+                                        if (!proposta.validade_dias) return null;
+                                        const expiresAt = new Date(proposta.created_at);
+                                        expiresAt.setDate(expiresAt.getDate() + proposta.validade_dias);
+                                        const diffDays = Math.ceil((expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+                                        if (diffDays > 3) return null;
+                                        return (
+                                          <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${diffDays < 0 ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                                            {diffDays < 0 ? "Expirada" : `${diffDays}d`}
+                                          </span>
+                                        );
+                                      })()}
+                                    </div>
                                     {proposta.cliente_whatsapp && (
                                       <a
                                         href={formatWhatsAppUrl(proposta.cliente_whatsapp, proposta.cliente_nome)}
@@ -324,6 +349,13 @@ export default function Kanban() {
                   </p>
                 )}
 
+                {selectedProposta.public_token && (
+                  <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => handleCopyLink(selectedProposta)}>
+                    <Link2 className="h-3.5 w-3.5" />
+                    Copiar link público
+                  </Button>
+                )}
+
                 {isPropostaVazia(selectedProposta) ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
                     <p className="text-sm text-amber-700">
@@ -368,6 +400,26 @@ export default function Kanban() {
                   <div>
                     <p className="text-sm font-medium mb-1">Observações:</p>
                     <p className="text-sm text-muted-foreground">{selectedProposta.observacoes}</p>
+                  </div>
+                )}
+
+                {atividades.length > 0 && (
+                  <div className="border-t pt-3 space-y-2">
+                    <p className="text-sm font-medium">Últimas atividades</p>
+                    <div className="space-y-1.5">
+                      {atividades.slice(0, 3).map((a) => (
+                        <div key={a.id} className="text-xs p-2 rounded-lg bg-muted/40 flex gap-2">
+                          <span className="font-medium capitalize">{a.tipo}:</span>
+                          <span className="text-muted-foreground flex-1">{a.descricao}</span>
+                          <span className="text-muted-foreground/60 shrink-0">
+                            {new Date(a.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <Link to="/propostas" onClick={() => setSelectedProposta(null)} className="text-xs text-primary hover:underline">
+                      Ver todas as atividades →
+                    </Link>
                   </div>
                 )}
               </div>

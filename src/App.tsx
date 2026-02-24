@@ -16,6 +16,7 @@ const Propostas = lazy(() => import("./pages/Propostas"));
 const Kanban = lazy(() => import("./pages/Kanban"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const PropostaPublica = lazy(() => import("./pages/PropostaPublica"));
 
 // ── Page loader fallback ───────────────────────────────────────────────────────
 function PageLoader() {
@@ -90,6 +91,8 @@ const App = () => (
                 <Route path="/propostas" element={<ProtectedRoute><Propostas /></ProtectedRoute>} />
                 <Route path="/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
                 <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
+                {/* Rota pública — sem autenticação, sem AppLayout */}
+                <Route path="/p/:token" element={<PropostaPublica />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>

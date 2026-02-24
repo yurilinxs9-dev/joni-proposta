@@ -143,9 +143,22 @@ export interface PropostaDB {
   desconto_valor: number | null;
   observacoes: string | null;
   criado_por: string | null;
+  public_token: string | null;
+  validade_dias: number | null;
   created_at: string;
   updated_at: string;
   proposta_servicos?: PropostaServicoDB[];
+}
+
+export type AtividadeTipo = 'nota' | 'ligacao' | 'reuniao' | 'status' | 'envio' | 'aceite' | 'visualizacao';
+
+export interface AtividadeDB {
+  id: string;
+  proposta_id: string;
+  tipo: AtividadeTipo;
+  descricao: string | null;
+  criado_por: string | null;
+  created_at: string;
 }
 
 export interface PropostaServicoDB {

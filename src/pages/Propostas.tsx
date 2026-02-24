@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { usePropostas, useDuplicateProposta, useUpdateProposta, useDeleteProposta } from "@/hooks/usePropostas";
-import { STATUS_LABELS, STATUS_COLORS, type StatusProposta } from "@/types/proposta";
+import { useAtividades, useAddAtividade } from "@/hooks/useAtividades";
+import { STATUS_LABELS, STATUS_COLORS, type StatusProposta, type AtividadeTipo } from "@/types/proposta";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { generatePDF } from "@/lib/generatePDF";
-import { Copy, FileDown, Search, Eye, Trash2, MessageCircle, Filter, MoreVertical } from "lucide-react";
+import { Copy, FileDown, Search, Eye, Trash2, MessageCircle, Filter, MoreVertical, Link2, Phone, Users, Send, Pencil, Plus } from "lucide-react";
 
 // Categorias de serviço
 const CATEGORIAS = {
@@ -56,6 +57,99 @@ function formatWhatsAppUrl(phone: string, clienteNome?: string) {
     ? encodeURIComponent(`Olá ${clienteNome}! Tudo bem? Segue nossa proposta comercial. Qualquer dúvida estou à disposição! 😊`)
     : "";
   return `https://wa.me/${number}${msg ? `?text=${msg}` : ""}`;
+}
+
+function getValidadeStatus(p: any): { expired: boolean; days: number } | null {
+  if (!p.validade_dias || !p.created_at) return null;
+  const expiresAt = new Date(p.created_at);
+  expiresAt.setDate(expiresAt.getDate() + p.validade_dias);
+  const diffDays = Math.ceil((expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+  if (diffDays > 3) return null;
+  return { expired: diffDays < 0, days: diffDays };
+}
+
+const TIPO_LABELS: Record<AtividadeTipo, string> = {
+  nota: "Nota",
+  ligacao: "Ligação",
+  reuniao: "Reunião",
+  envio: "Envio",
+  status: "Status",
+  aceite: "Aceite",
+  visualizacao: "Visualização",
+};
+
+const TIPO_ICONS: Record<string, React.ElementType> = {
+  nota: Pencil,
+  ligacao: Phone,
+  reuniao: Users,
+  envio: Send,
+  status: FileDown,
+  aceite: Eye,
+  visualizacao: Eye,
+};
+
+function PropostaTimeline({ propostaId }: { propostaId: string }) {
+  const { data: atividades = [] } = useAtividades(propostaId);
+  const addAtividade = useAddAtividade();
+  const [tipo, setTipo] = useState<AtividadeTipo>("nota");
+  const [descricao, setDescricao] = useState("");
+
+  const handleAdd = async () => {
+    if (!descricao.trim()) return;
+    await addAtividade.mutateAsync({ propostaId, tipo, descricao });
+    setDescricao("");
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="font-medium text-sm">Atividades</p>
+      <div className="flex gap-2">
+        <Select value={tipo} onValueChange={(v) => setTipo(v as AtividadeTipo)}>
+          <SelectTrigger className="w-28 h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="nota">Nota</SelectItem>
+            <SelectItem value="ligacao">Ligação</SelectItem>
+            <SelectItem value="reuniao">Reunião</SelectItem>
+            <SelectItem value="envio">Envio</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          value={descricao}
+          onChange={(e) => setDescricao(e.target.value)}
+          placeholder="Descreva a atividade..."
+          className="h-8 text-sm flex-1"
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+        />
+        <Button size="icon" className="h-8 w-8 shrink-0" onClick={handleAdd} disabled={addAtividade.isPending || !descricao.trim()}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      {atividades.length > 0 && (
+        <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+          {atividades.map((a) => {
+            const Icon = TIPO_ICONS[a.tipo] || Pencil;
+            return (
+              <div key={a.id} className="flex items-start gap-2 text-xs p-2 rounded-lg bg-muted/40">
+                <Icon className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                <div className="flex-1 min-w-0">
+                  <span className="font-medium">{TIPO_LABELS[a.tipo] ?? a.tipo}: </span>
+                  <span className="text-muted-foreground">{a.descricao}</span>
+                </div>
+                <span className="text-muted-foreground/60 shrink-0">
+                  {new Date(a.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {atividades.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center py-2">Nenhuma atividade registrada</p>
+      )}
+    </div>
+  );
 }
 
 export default function Propostas() {
@@ -106,6 +200,15 @@ export default function Propostas() {
     }
   };
 
+  const handleCopyLink = (p: any) => {
+    if (!p.public_token) {
+      toast({ title: "Link não disponível para esta proposta" });
+      return;
+    }
+    navigator.clipboard.writeText(`${window.location.origin}/p/${p.public_token}`);
+    toast({ title: "Link copiado!" });
+  };
+
   const handleDownloadPDF = async (p: any) => {
     const servicos = (p.proposta_servicos || []).map((s: any) => ({
       nome: s.servico_nome,
@@ -114,6 +217,12 @@ export default function Propostas() {
       valor_setup: s.valor_setup,
       selecionado: true,
     }));
+    let dataValidade: string | undefined;
+    if (p.validade_dias) {
+      const d = new Date(p.created_at);
+      d.setDate(d.getDate() + p.validade_dias);
+      dataValidade = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+    }
     await generatePDF({
       clienteNome: p.cliente_nome,
       clienteEmpresa: p.cliente_empresa || "",
@@ -125,6 +234,7 @@ export default function Propostas() {
       valorTotal: p.valor_total,
       descontoTipo: p.desconto_tipo || "percentual",
       descontoValor: p.desconto_valor || 0,
+      dataValidade,
     });
   };
 
@@ -235,9 +345,20 @@ export default function Propostas() {
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">{p.cliente_empresa || "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={STATUS_COLORS[p.status as StatusProposta]}>
-                          {STATUS_LABELS[p.status as StatusProposta]}
-                        </Badge>
+                        <div className="flex flex-col gap-1 items-start">
+                          <Badge variant="outline" className={STATUS_COLORS[p.status as StatusProposta]}>
+                            {STATUS_LABELS[p.status as StatusProposta]}
+                          </Badge>
+                          {(() => {
+                            const vs = getValidadeStatus(p);
+                            if (!vs) return null;
+                            return (
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${vs.expired ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                                {vs.expired ? "Expirada" : `${vs.days}d restante${vs.days !== 1 ? "s" : ""}`}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right font-medium hidden sm:table-cell">{formatCurrency(p.valor_total)}</TableCell>
                       <TableCell className="hidden md:table-cell">{new Date(p.created_at).toLocaleDateString("pt-BR")}</TableCell>
@@ -256,6 +377,9 @@ export default function Propostas() {
                               </Button>
                             </a>
                           )}
+                          <Button variant="ghost" size="icon" aria-label="Copiar link público" title="Copiar link" onClick={() => handleCopyLink(p)}>
+                            <Link2 className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" aria-label="Ver detalhes" onClick={() => { setDetalhe(p); setObs(p.observacoes || ""); }}>
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -298,6 +422,10 @@ export default function Propostas() {
                                   </a>
                                 </DropdownMenuItem>
                               )}
+                              <DropdownMenuItem onClick={() => handleCopyLink(p)}>
+                                <Link2 className="h-4 w-4 mr-2" />
+                                Copiar link
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => { setDetalhe(p); setObs(p.observacoes || ""); }}>
                                 <Eye className="h-4 w-4 mr-2" />
                                 Ver detalhes
@@ -380,9 +508,21 @@ export default function Propostas() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Observações internas</label>
                 <Textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={3} />
-                <Button size="sm" onClick={handleSaveObs} disabled={updateProposta.isPending}>
-                  {updateProposta.isPending ? "Salvando..." : "Salvar observações"}
-                </Button>
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" onClick={handleSaveObs} disabled={updateProposta.isPending}>
+                    {updateProposta.isPending ? "Salvando..." : "Salvar observações"}
+                  </Button>
+                  {detalhe?.public_token && (
+                    <Button size="sm" variant="outline" onClick={() => handleCopyLink(detalhe)}>
+                      <Link2 className="h-4 w-4 mr-1.5" />
+                      Copiar link
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t pt-3">
+                <PropostaTimeline propostaId={detalhe.id} />
               </div>
             </div>
           )}

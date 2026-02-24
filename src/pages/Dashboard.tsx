@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { usePropostas } from "@/hooks/usePropostas";
 import { useAgendaEvents, useGoogleIntegration } from "@/hooks/useGoogleCalendar";
-import { STATUS_LABELS, type StatusProposta } from "@/types/proposta";
+import { useAppSettings, useSaveSetting } from "@/hooks/useAppSettings";
+import { STATUS_LABELS, STATUS_COLORS } from "@/types/proposta";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { DollarSign, TrendingUp, FileText, Target, Calendar, Video, MapPin, Clock, Users, ChevronRight } from "lucide-react";
+import { DollarSign, TrendingUp, FileText, Target, Calendar, Video, MapPin, Clock, Users, ChevronRight, Bell, PhoneCall, Pencil, Check, X } from "lucide-react";
 
 // Colors matching the Kanban columns (funnel stages)
 const PIE_COLORS = [
@@ -36,6 +39,11 @@ export default function Dashboard() {
   const { data: propostas = [], isLoading } = usePropostas();
   const { data: integration } = useGoogleIntegration();
   const { data: events = [] } = useAgendaEvents();
+  const { data: settings } = useAppSettings();
+  const saveSetting = useSaveSetting();
+
+  const [editingMeta, setEditingMeta] = useState(false);
+  const [metaInput, setMetaInput] = useState("");
 
   const now = new Date();
   const mesAtual = propostas.filter((p) => {
@@ -47,6 +55,30 @@ export default function Dashboard() {
   const fechados = mesAtual.filter((p) => p.status === "fechado");
   const totalFechado = fechados.reduce((sum, p) => sum + p.valor_total, 0);
   const ticketMedio = mesAtual.length > 0 ? totalEnviado / mesAtual.length : 0;
+
+  // Follow-up: propostas enviadas/negociação sem movimento há > 3 dias
+  const FOLLOWUP_DIAS = 3;
+  const precisamFollowUp = propostas
+    .filter((p) =>
+      ["proposta_enviada", "em_negociacao"].includes(p.status) &&
+      Date.now() - new Date(p.updated_at).getTime() > FOLLOWUP_DIAS * 24 * 60 * 60 * 1000
+    )
+    .sort((a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime());
+
+  // Meta mensal
+  const metaMensal = settings?.meta_mensal ? parseFloat(settings.meta_mensal) : null;
+  const metaProgressPct = metaMensal ? Math.min(100, (totalFechado / metaMensal) * 100) : 0;
+  const diasNoMes = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const diasPassados = now.getDate();
+  const projecao = diasPassados > 0 ? (totalFechado / diasPassados) * diasNoMes : 0;
+
+  const handleSaveMeta = async () => {
+    const val = parseFloat(metaInput.replace(",", "."));
+    if (!isNaN(val) && val > 0) {
+      await saveSetting.mutateAsync({ key: "meta_mensal", value: String(val) });
+    }
+    setEditingMeta(false);
+  };
 
   const statusCounts = Object.entries(STATUS_LABELS).map(([key, label]) => ({
     name: label,
@@ -138,6 +170,128 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Meta Mensal */}
+      <Card className="border-0 shadow-md overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Target className="h-4 w-4 text-emerald-500" />
+              Meta Mensal
+            </CardTitle>
+            {!editingMeta && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground"
+                onClick={() => { setMetaInput(metaMensal ? String(metaMensal) : ""); setEditingMeta(true); }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {editingMeta ? (
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                placeholder="Ex: 10000"
+                value={metaInput}
+                onChange={(e) => setMetaInput(e.target.value)}
+                className="h-8 text-sm"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveMeta(); if (e.key === "Escape") setEditingMeta(false); }}
+              />
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600" onClick={handleSaveMeta} disabled={saveSetting.isPending}>
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={() => setEditingMeta(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : metaMensal ? (
+            <>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-muted-foreground">Fechado: <strong>{formatCurrency(totalFechado)}</strong></span>
+                <span className="text-muted-foreground">Meta: <strong>{formatCurrency(metaMensal)}</strong></span>
+              </div>
+              <div className="relative h-3 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${metaProgressPct}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                <span>{metaProgressPct.toFixed(0)}% da meta atingida</span>
+                <span>Projeção: {formatCurrency(projecao)}</span>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-3 space-y-2">
+              <p className="text-sm text-muted-foreground">Defina sua meta de fechamento mensal</p>
+              <Button size="sm" variant="outline" onClick={() => { setMetaInput(""); setEditingMeta(true); }}>
+                Definir meta
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Follow-up Pendente */}
+      {precisamFollowUp.length > 0 && (
+        <Card className="border-0 shadow-md overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-amber-500 to-amber-400" />
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Bell className="h-4 w-4 text-amber-500" />
+                Follow-up Pendente
+                <Badge className="bg-amber-500/10 text-amber-700 border-amber-200 text-xs">
+                  {precisamFollowUp.length}
+                </Badge>
+              </CardTitle>
+              <Button variant="ghost" size="sm" className="gap-1 text-xs text-muted-foreground" onClick={() => navigate("/propostas")}>
+                Ver todas <ChevronRight className="h-3 w-3" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {precisamFollowUp.slice(0, 5).map((p) => {
+                const diasSemMovimento = Math.floor((Date.now() - new Date(p.updated_at).getTime()) / (24 * 60 * 60 * 1000));
+                return (
+                  <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg bg-amber-50/60 dark:bg-amber-950/20 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors">
+                    <div className="p-1.5 rounded-lg bg-amber-500/10 shrink-0">
+                      <PhoneCall className="h-3.5 w-3.5 text-amber-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{p.cliente_empresa || p.cliente_nome}</p>
+                      {p.cliente_empresa && <p className="text-xs text-muted-foreground truncate">{p.cliente_nome}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge className={STATUS_COLORS[p.status]} >{STATUS_LABELS[p.status]}</Badge>
+                      <span className="text-xs text-amber-700 font-medium whitespace-nowrap">há {diasSemMovimento}d</span>
+                      {p.cliente_whatsapp && (
+                        <a
+                          href={`https://wa.me/55${p.cliente_whatsapp.replace(/\D/g, "")}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-emerald-600 hover:text-emerald-700"
+                          title="WhatsApp"
+                        >
+                          <PhoneCall className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Google Calendar widget — only if connected and has upcoming meetings */}
       {integration?.enabled && (upcomingMeetings.length > 0 || totalPending > 0) && (

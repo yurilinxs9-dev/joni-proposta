@@ -40,6 +40,42 @@ export function useProposta(id: string | undefined) {
   });
 }
 
+// ── Busca proposta por token público — sem auth ───────────────────────────────
+export function useGetPropostaByToken(token: string | undefined) {
+  return useQuery({
+    queryKey: ["proposta_publica", token],
+    queryFn: async (): Promise<PropostaDB | null> => {
+      if (!token) return null;
+      const { data, error } = await supabase
+        .from("propostas")
+        .select("*, proposta_servicos(*)")
+        .eq("public_token", token)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as any) || null;
+    },
+    enabled: !!token,
+    staleTime: 30 * 1000,
+  });
+}
+
+// ── Aceitar proposta via token — sem auth ─────────────────────────────────────
+export function useAceitarProposta() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (token: string) => {
+      const { error } = await supabase
+        .from("propostas")
+        .update({ status: "fechado" })
+        .eq("public_token", token);
+      if (error) throw error;
+    },
+    onSuccess: (_data, token) => {
+      qc.invalidateQueries({ queryKey: ["proposta_publica", token] });
+    },
+  });
+}
+
 export function useCreateProposta() {
   const qc = useQueryClient();
   return useMutation({
@@ -55,6 +91,7 @@ export function useCreateProposta() {
       desconto_valor?: number;
       observacoes?: string;
       criado_por?: string;
+      validade_dias?: number;
       servicos: { servico_nome: string; descricao: string; valor_mensal: number; valor_setup: number }[];
     }) => {
       const { servicos, ...propostaData } = proposta;
@@ -115,6 +152,7 @@ export function useUpdatePropostaCompleta() {
       desconto_tipo?: string;
       desconto_valor?: number;
       observacoes?: string;
+      validade_dias?: number;
       servicos: { servico_nome: string; descricao: string; valor_mensal: number; valor_setup: number }[];
     }) => {
       const { id, servicos, ...propostaData } = proposta;
@@ -166,7 +204,7 @@ export function useDuplicateProposta() {
         .single();
       if (fetchError) throw fetchError;
 
-      const { id: _id, created_at, updated_at, proposta_servicos, ...rest } = original as any;
+      const { id: _id, created_at, updated_at, proposta_servicos, public_token: _tok, ...rest } = original as any;
       const { data: newProposta, error } = await supabase
         .from("propostas")
         .insert({ ...rest, status: "novo_lead", cliente_nome: `${rest.cliente_nome} (cópia)` })
