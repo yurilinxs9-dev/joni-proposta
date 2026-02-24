@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { usePropostas, useUpdatePropostaStatus, useDeleteProposta } from "@/hooks/usePropostas";
 import { useAgendaEvents } from "@/hooks/useGoogleCalendar";
@@ -6,10 +6,13 @@ import { STATUS_LABELS, type StatusProposta, type PropostaDB } from "@/types/pro
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, MessageCircle, Calendar, FilePlus, Eye } from "lucide-react";
+import { Trash2, MessageCircle, Calendar, FilePlus, Eye, Search } from "lucide-react";
 
 const COLUMNS: StatusProposta[] = ["novo_lead", "proposta_enviada", "em_negociacao", "fechado", "perdido"];
 
@@ -27,10 +30,13 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
-function formatWhatsAppUrl(phone: string) {
+function formatWhatsAppUrl(phone: string, clienteNome?: string) {
   const digits = phone.replace(/\D/g, "");
   const number = digits.startsWith("55") ? digits : `55${digits}`;
-  return `https://wa.me/${number}`;
+  const msg = clienteNome
+    ? encodeURIComponent(`Olá ${clienteNome}! Tudo bem? Segue nossa proposta comercial. Qualquer dúvida estou à disposição! 😊`)
+    : "";
+  return `https://wa.me/${number}${msg ? `?text=${msg}` : ""}`;
 }
 
 export default function Kanban() {
@@ -42,53 +48,50 @@ export default function Kanban() {
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [selectedProposta, setSelectedProposta] = useState<PropostaDB | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PropostaDB | null>(null);
+  const [busca, setBusca] = useState("");
 
   const pendingAgendaEvents = agendaEvents.filter((e) => e.status === "pendente");
 
-  // Verifica se a proposta está "vazia" (sem serviços/valores)
+  const propostasFiltradas = useMemo(() => {
+    if (!busca.trim()) return propostas;
+    const lower = busca.toLowerCase();
+    return propostas.filter(
+      (p) =>
+        p.cliente_nome.toLowerCase().includes(lower) ||
+        (p.cliente_empresa?.toLowerCase() || "").includes(lower),
+    );
+  }, [propostas, busca]);
+
   const isPropostaVazia = (p: PropostaDB) => {
     return (!p.proposta_servicos || p.proposta_servicos.length === 0) && p.valor_total === 0;
   };
 
-  // Criar proposta completa a partir de um lead vazio
   const handleCriarProposta = (p: PropostaDB) => {
-    // Redirecionar para Nova Proposta com os dados do cliente
     const params = new URLSearchParams({
       cliente: p.cliente_nome,
       empresa: p.cliente_empresa || "",
       whatsapp: p.cliente_whatsapp || "",
-      propostaId: p.id, // Para vincular depois
+      propostaId: p.id,
     });
     navigate(`/nova-proposta?${params.toString()}`);
   };
 
-  const handleDragStart = () => {
-    setIsDragging(true);
-  };
+  const handleDragStart = () => setIsDragging(true);
 
   const handleDragEnd = async (result: DropResult) => {
     setIsDragging(false);
-
     if (!result.destination) return;
 
     const destinationId = result.destination.droppableId;
     const propostaId = result.draggableId;
 
-    // Drop on delete zone
     if (destinationId === DELETE_ZONE_ID) {
       const proposta = propostas.find((p) => p.id === propostaId);
-      if (proposta && window.confirm(`Apagar a proposta de "${proposta.cliente_nome}"?`)) {
-        try {
-          await deleteProposta.mutateAsync(propostaId);
-          toast({ title: "Proposta apagada!" });
-        } catch {
-          toast({ title: "Erro ao apagar", variant: "destructive" });
-        }
-      }
+      if (proposta) setDeleteTarget(proposta);
       return;
     }
 
-    // Drop on status column
     const newStatus = destinationId as StatusProposta;
     try {
       await updateStatus.mutateAsync({ id: propostaId, status: newStatus });
@@ -97,46 +100,78 @@ export default function Kanban() {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteProposta.mutateAsync(deleteTarget.id);
+      toast({ title: "Proposta apagada!" });
+    } catch {
+      toast({ title: "Erro ao apagar", variant: "destructive" });
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">Carregando...</p>
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-32" />
+        <div className="flex gap-3 overflow-x-auto pb-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="min-w-[220px] sm:min-w-[260px] flex-1">
+              <Skeleton className="h-[300px] w-full rounded-xl" />
+            </div>
+          ))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 relative">
-      <div className="flex items-start justify-between">
+    <div className="space-y-6 relative">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Kanban</h1>
-          <p className="text-muted-foreground mt-1">Arraste os cards para mover entre etapas</p>
+          <p className="text-muted-foreground mt-1 text-sm hidden sm:block">Arraste os cards para mover entre etapas</p>
         </div>
 
-        {/* Indicador de leads da agenda */}
-        {pendingAgendaEvents.length > 0 && (
-          <Link to="/configuracoes">
-            <Button variant="outline" className="gap-2 relative">
-              <Calendar className="h-4 w-4" />
-              <span>Leads da Agenda</span>
-              <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
-                {pendingAgendaEvents.length}
-              </span>
-            </Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-2 flex-1 sm:flex-initial sm:max-w-xs">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar cliente..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="pl-9 h-9"
+            />
+          </div>
+          {pendingAgendaEvents.length > 0 && (
+            <Link to="/configuracoes">
+              <Button variant="outline" size="sm" className="gap-2 relative shrink-0">
+                <Calendar className="h-4 w-4" />
+                <span className="hidden sm:inline">Leads da Agenda</span>
+                <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  {pendingAgendaEvents.length}
+                </span>
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
+      {busca && (
+        <p className="text-sm text-muted-foreground">
+          {propostasFiltradas.length} resultado{propostasFiltradas.length !== 1 ? "s" : ""} para <strong>"{busca}"</strong>
+        </p>
+      )}
+
       <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-20">
+        <div className="flex gap-3 overflow-x-auto pb-20 snap-x snap-mandatory">
           {COLUMNS.map((col) => {
-            const items = propostas.filter((p) => p.status === col);
+            const items = propostasFiltradas.filter((p) => p.status === col);
             const style = COLUMN_STYLES[col];
             return (
-              <div key={col} className="min-w-[260px] flex-1">
+              <div key={col} className="min-w-[220px] sm:min-w-[260px] flex-1 snap-start">
                 <div className={`rounded-xl ${style.border} ${style.bg} p-3 shadow-sm`}>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-sm">{STATUS_LABELS[col]}</h3>
@@ -169,15 +204,15 @@ export default function Kanban() {
                                   } ${vazia ? "border-l-4 border-l-amber-400" : ""}`}
                                 >
                                   <div className="flex items-start justify-between">
-                                    <p className="font-medium text-sm">{proposta.cliente_nome}</p>
+                                    <p className="font-medium text-sm truncate flex-1 pr-1">{proposta.cliente_nome}</p>
                                     {vazia && (
-                                      <Badge variant="outline" className="text-[9px] py-0 bg-amber-50 text-amber-600 border-amber-200">
+                                      <Badge variant="outline" className="text-[9px] py-0 bg-amber-50 text-amber-600 border-amber-200 shrink-0">
                                         Sem proposta
                                       </Badge>
                                     )}
                                   </div>
                                   {proposta.cliente_empresa && (
-                                    <p className="text-xs text-muted-foreground">{proposta.cliente_empresa}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{proposta.cliente_empresa}</p>
                                   )}
                                   {!vazia && (
                                     <p className="text-sm font-bold text-foreground mt-1">
@@ -197,9 +232,10 @@ export default function Kanban() {
                                     </p>
                                     {proposta.cliente_whatsapp && (
                                       <a
-                                        href={formatWhatsAppUrl(proposta.cliente_whatsapp)}
+                                        href={formatWhatsAppUrl(proposta.cliente_whatsapp, proposta.cliente_nome)}
                                         target="_blank"
                                         rel="noopener noreferrer"
+                                        aria-label={`WhatsApp de ${proposta.cliente_nome}`}
                                         className="text-green-500 hover:text-green-600 transition-colors"
                                         onClick={(e) => e.stopPropagation()}
                                         onMouseDown={(e) => e.stopPropagation()}
@@ -223,7 +259,7 @@ export default function Kanban() {
           })}
         </div>
 
-        {/* ─── Delete drop zone — appears when dragging ─── */}
+        {/* Delete drop zone */}
         <div
           className={`fixed bottom-0 left-0 right-0 z-50 flex justify-center transition-all duration-300 pointer-events-none ${
             isDragging ? "translate-y-0 opacity-100" : "translate-y-full opacity-0"
@@ -251,13 +287,13 @@ export default function Kanban() {
         </div>
       </DragDropContext>
 
-      {/* Modal de detalhes/criar proposta */}
+      {/* Modal de detalhes */}
       <Dialog open={!!selectedProposta} onOpenChange={() => setSelectedProposta(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
           {selectedProposta && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+                <DialogTitle className="flex items-center gap-2 flex-wrap">
                   {selectedProposta.cliente_nome}
                   {isPropostaVazia(selectedProposta) && (
                     <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
@@ -274,10 +310,10 @@ export default function Kanban() {
                   </p>
                 )}
                 {selectedProposta.cliente_whatsapp && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
                     <strong>WhatsApp:</strong>{" "}
                     <a
-                      href={formatWhatsAppUrl(selectedProposta.cliente_whatsapp)}
+                      href={formatWhatsAppUrl(selectedProposta.cliente_whatsapp, selectedProposta.cliente_nome)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-green-600 hover:underline flex items-center gap-1"
@@ -293,10 +329,7 @@ export default function Kanban() {
                     <p className="text-sm text-amber-700">
                       Este lead ainda não tem uma proposta definida. Clique abaixo para criar a proposta completa com serviços e valores.
                     </p>
-                    <Button
-                      onClick={() => handleCriarProposta(selectedProposta)}
-                      className="w-full gap-2"
-                    >
+                    <Button onClick={() => handleCriarProposta(selectedProposta)} className="w-full gap-2">
                       <FilePlus className="h-4 w-4" />
                       Criar Proposta
                     </Button>
@@ -342,6 +375,28 @@ export default function Kanban() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirmação de deleção */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apagar proposta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja apagar a proposta de <strong>{deleteTarget?.cliente_nome}</strong>?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Apagar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

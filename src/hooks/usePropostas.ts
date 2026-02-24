@@ -1,18 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { PropostaDB, StatusProposta } from "@/types/proposta";
+import { useAuth } from "./useAuth";
 
 export function usePropostas() {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["propostas"],
+    queryKey: ["propostas", user?.id],
     queryFn: async (): Promise<PropostaDB[]> => {
+      if (!user) return [];
       const { data, error } = await supabase
         .from("propostas")
         .select("*, proposta_servicos(*)")
+        .eq("criado_por", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data as any) ?? [];
     },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 }
 
@@ -29,6 +36,7 @@ export function useProposta(id: string | undefined) {
       return data as any;
     },
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

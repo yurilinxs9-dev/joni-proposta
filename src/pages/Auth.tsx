@@ -240,13 +240,20 @@ export default function Auth() {
           50% { transform: translateY(-30px) scale(1.05); }
         }
         @keyframes logoPulse {
-          0%, 100% { 
+          0%, 100% {
             transform: scale(1);
             filter: drop-shadow(0 0 30px rgba(212,160,23,0.2));
           }
-          50% { 
+          50% {
             transform: scale(1.04);
             filter: drop-shadow(0 0 50px rgba(212,160,23,0.4));
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
           }
         }
       `}</style>

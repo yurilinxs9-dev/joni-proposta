@@ -99,6 +99,8 @@ export function useGoogleIntegration() {
       return (data as GoogleIntegration) || null;
     },
     enabled: !!user,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 
@@ -119,6 +121,8 @@ export function useAgendaEvents() {
       return (data || []) as AgendaEvent[];
     },
     enabled: !!user,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 

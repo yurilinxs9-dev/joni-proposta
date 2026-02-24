@@ -120,7 +120,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {kpiCards.map((kpi) => (
           <Card key={kpi.title} className="card-hover border-0 shadow-md overflow-hidden">
             <CardContent className="p-0">

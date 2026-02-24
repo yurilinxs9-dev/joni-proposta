@@ -275,7 +275,7 @@ export default function Vendas() {
       </div>
 
       {/* KPI Cards Resumo */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-0 shadow-md">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-2">
@@ -351,7 +351,7 @@ export default function Vendas() {
       {/* Cards por Categoria */}
       <div>
         <h2 className="text-lg font-semibold mb-4">Vendas por Categoria</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
             const stat = categoriaStats[key];
             const Icon = CATEGORY_ICONS[key];

@@ -22,6 +22,16 @@ import {
   type AgendaEvent,
 } from "@/hooks/useGoogleCalendar";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Calendar,
   RefreshCw,
   Link2Off,
@@ -101,6 +111,7 @@ export default function Configuracoes() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [clientIdInput, setClientIdInput] = useState("");
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
 
   // Resolve Google Client ID: DB setting first, env var as fallback
   const googleClientId =
@@ -190,8 +201,9 @@ export default function Configuracoes() {
     }
   };
 
-  const handleDisconnect = () => {
-    if (!window.confirm("Tem certeza que deseja desconectar sua conta Google?")) return;
+  const handleDisconnect = () => setShowDisconnectDialog(true);
+
+  const confirmDisconnect = () => {
     disconnectGoogle.mutate(undefined, {
       onSuccess: () => toast({ title: "Google Agenda desconectada" }),
       onError: (error: Error) =>
@@ -608,6 +620,28 @@ export default function Configuracoes() {
           </CardContent>
         </Card>
       )}
+
+      {/* ── Disconnect confirmation dialog ── */}
+      <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desconectar Google Agenda?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sua integração com o Google será removida. Os leads já criados serão mantidos,
+              mas a sincronização automática será interrompida.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600 text-white"
+              onClick={confirmDisconnect}
+            >
+              Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ══════════════════════════════════════════════════════════════════════
           ADMIN SETUP SECTION (collapsible)
