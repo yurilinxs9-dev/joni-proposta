@@ -39,9 +39,6 @@ export default function NovaProposta() {
   const { user } = useAuth();
   const createProposta = useCreateProposta();
   const updatePropostaCompleta = useUpdatePropostaCompleta();
-  const { data: propostaExistente } = useProposta(leadPropostaId || undefined);
-  const isEditingExisting = isEditingLead && (propostaExistente?.proposta_servicos?.length ?? 0) > 0;
-  const preenchidoRef = useRef(false);
   const { toast } = useToast();
 
   // Parâmetros vindos de um lead (Google Agenda)
@@ -50,6 +47,11 @@ export default function NovaProposta() {
   const leadWhatsapp = searchParams.get("whatsapp") || "";
   const leadPropostaId = searchParams.get("propostaId") || "";
   const isEditingLead = !!leadPropostaId;
+
+  // Edição de proposta existente
+  const { data: propostaExistente } = useProposta(leadPropostaId || undefined);
+  const isEditingExisting = isEditingLead && (propostaExistente?.proposta_servicos?.length ?? 0) > 0;
+  const preenchidoRef = useRef(false);
 
   // Serviços personalizados do banco
   const { data: servicosPersonalizados = [], isLoading: loadingServicos } = useServicosPersonalizados();
