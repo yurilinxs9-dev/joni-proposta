@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { useCreateProposta, useUpdatePropostaCompleta } from "@/hooks/usePropostas";
+import { useCreateProposta, useUpdatePropostaCompleta, useProposta } from "@/hooks/usePropostas";
 import {
   useServicosPersonalizados,
   useCreateServico,
@@ -39,6 +39,9 @@ export default function NovaProposta() {
   const { user } = useAuth();
   const createProposta = useCreateProposta();
   const updatePropostaCompleta = useUpdatePropostaCompleta();
+  const { data: propostaExistente } = useProposta(leadPropostaId || undefined);
+  const isEditingExisting = isEditingLead && (propostaExistente?.proposta_servicos?.length ?? 0) > 0;
+  const preenchidoRef = useRef(false);
   const { toast } = useToast();
 
   // Parâmetros vindos de um lead (Google Agenda)
@@ -105,6 +108,36 @@ export default function NovaProposta() {
       });
     });
   }, [servicosPersonalizados]);
+
+  // Pré-preencher todos os campos quando estiver editando uma proposta existente
+  useEffect(() => {
+    if (!propostaExistente || servicos.length === 0 || preenchidoRef.current) return;
+    preenchidoRef.current = true;
+
+    setClienteNome(propostaExistente.cliente_nome ?? "");
+    setClienteEmpresa(propostaExistente.cliente_empresa ?? "");
+    setClienteWhatsapp(propostaExistente.cliente_whatsapp ?? "");
+    setObservacoes(propostaExistente.observacoes ?? "");
+    if (propostaExistente.desconto_tipo) setDescontoTipo(propostaExistente.desconto_tipo as "percentual" | "fixo");
+    if (propostaExistente.desconto_valor) setDescontoValor(propostaExistente.desconto_valor);
+
+    const servicosSalvos = propostaExistente.proposta_servicos ?? [];
+    if (servicosSalvos.length > 0) {
+      setServicos((prev) =>
+        prev.map((s) => {
+          const saved = servicosSalvos.find((sv) => sv.servico_nome === s.nome);
+          if (!saved) return s;
+          return {
+            ...s,
+            selecionado: true,
+            valor_mensal: saved.valor_mensal,
+            valor_setup: saved.valor_setup,
+            descricao: saved.descricao ?? s.descricao,
+          };
+        })
+      );
+    }
+  }, [propostaExistente, servicos.length]);
 
   const toggleServico = (index: number) => {
     setServicos((prev) =>
@@ -241,7 +274,7 @@ export default function NovaProposta() {
         });
       }
 
-      toast({ title: isEditingLead ? "Proposta atualizada com sucesso!" : "Proposta salva com sucesso!" });
+      toast({ title: isEditingExisting ? "Proposta editada com sucesso!" : isEditingLead ? "Proposta atualizada com sucesso!" : "Proposta salva com sucesso!" });
       navigate("/propostas");
     } catch (error: any) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
@@ -323,10 +356,10 @@ export default function NovaProposta() {
 
         <div className="flex gap-3">
           <Button className="flex-1" onClick={() => handleSave(false)} disabled={isSaving}>
-            <Save className="h-4 w-4 mr-2" /> {isEditingLead ? "Atualizar Proposta" : "Salvar Proposta"}
+            <Save className="h-4 w-4 mr-2" /> {isEditingExisting ? "Salvar Edição" : isEditingLead ? "Atualizar Proposta" : "Salvar Proposta"}
           </Button>
           <Button variant="outline" className="flex-1" onClick={() => handleSave(true)} disabled={isSaving}>
-            <FileDown className="h-4 w-4 mr-2" /> {isEditingLead ? "Atualizar e Baixar PDF" : "Salvar e Baixar PDF"}
+            <FileDown className="h-4 w-4 mr-2" /> {isEditingExisting ? "Salvar e Baixar PDF" : isEditingLead ? "Atualizar e Baixar PDF" : "Salvar e Baixar PDF"}
           </Button>
         </div>
       </div>
@@ -338,9 +371,14 @@ export default function NovaProposta() {
       <div>
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-extrabold tracking-tight">
-            {isEditingLead ? "Completar Proposta" : "Nova Proposta"}
+            {isEditingExisting ? "Editar Proposta" : isEditingLead ? "Completar Proposta" : "Nova Proposta"}
           </h1>
-          {isEditingLead && (
+          {isEditingExisting && (
+            <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 gap-1">
+              Editando
+            </Badge>
+          )}
+          {isEditingLead && !isEditingExisting && (
             <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200 gap-1">
               <Calendar className="h-3 w-3" />
               Lead da Agenda
@@ -348,7 +386,9 @@ export default function NovaProposta() {
           )}
         </div>
         <p className="text-muted-foreground mt-1">
-          {isEditingLead
+          {isEditingExisting
+            ? `Editando proposta de ${propostaExistente?.cliente_nome}`
+            : isEditingLead
             ? `Complete a proposta para ${leadCliente}`
             : "Preencha os dados e selecione os serviços"}
         </p>

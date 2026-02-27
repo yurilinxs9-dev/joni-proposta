@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, MessageCircle, Calendar, FilePlus, Eye, Search, Link2 } from "lucide-react";
+import { Trash2, MessageCircle, Calendar, FilePlus, Eye, Search, Link2, Pencil } from "lucide-react";
 
 const COLUMNS: StatusProposta[] = ["novo_lead", "proposta_enviada", "em_negociacao", "fechado", "perdido"];
 
@@ -373,12 +373,14 @@ export default function Kanban() {
                       </div>
                     )}
 
-                    <Link to={`/propostas`} onClick={() => setSelectedProposta(null)}>
-                      <Button variant="outline" className="w-full gap-2 mt-2">
-                        <Eye className="h-4 w-4" />
-                        Ver Detalhes Completos
-                      </Button>
-                    </Link>
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 mt-2"
+                      onClick={() => { navigate(`/nova-proposta?propostaId=${selectedProposta.id}`); setSelectedProposta(null); }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Editar Proposta
+                    </Button>
                   </div>
                 )}
 

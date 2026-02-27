@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { usePropostas, useDuplicateProposta, useUpdateProposta, useDeleteProposta } from "@/hooks/usePropostas";
 import { useAtividades, useAddAtividade } from "@/hooks/useAtividades";
 import { STATUS_LABELS, STATUS_COLORS, type StatusProposta, type AtividadeTipo } from "@/types/proposta";
@@ -145,6 +146,7 @@ function PropostaTimeline({ propostaId }: { propostaId: string }) {
 }
 
 export default function Propostas() {
+  const navigate = useNavigate();
   const { data: propostas = [], isLoading } = usePropostas();
   const duplicar = useDuplicateProposta();
   const deletar = useDeleteProposta();
@@ -354,6 +356,9 @@ export default function Propostas() {
                           <Button variant="ghost" size="icon" aria-label="Copiar link público" title="Copiar link" onClick={() => handleCopyLink(p)}>
                             <Link2 className="h-4 w-4" />
                           </Button>
+                          <Button variant="ghost" size="icon" aria-label="Editar proposta" title="Editar proposta" onClick={() => navigate(`/nova-proposta?propostaId=${p.id}`)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" aria-label="Ver detalhes" onClick={() => { setDetalhe(p); setObs(p.observacoes || ""); }}>
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -396,6 +401,10 @@ export default function Propostas() {
                                   </a>
                                 </DropdownMenuItem>
                               )}
+                              <DropdownMenuItem onClick={() => navigate(`/nova-proposta?propostaId=${p.id}`)}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Editar
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleCopyLink(p)}>
                                 <Link2 className="h-4 w-4 mr-2" />
                                 Copiar link
