@@ -257,22 +257,27 @@ export default function NovaProposta() {
         await createProposta.mutateAsync({ ...valoresProposta, criado_por: user?.id });
       }
 
+      toast({ title: isEditingExisting ? "Proposta editada com sucesso!" : isEditingLead ? "Proposta atualizada com sucesso!" : "Proposta salva com sucesso!" });
+
       if (downloadPDF) {
-        await generatePDF({
-          clienteNome,
-          clienteEmpresa,
-          clienteEmail: "",
-          clienteWhatsapp,
-          servicos: selecionados,
-          valorMensal: valorMensalFinal,
-          valorSetup: valorSetupFinal,
-          valorTotal,
-          descontoTipo,
-          descontoValor,
-        });
+        try {
+          await generatePDF({
+            clienteNome,
+            clienteEmpresa,
+            clienteEmail: "",
+            clienteWhatsapp,
+            servicos: selecionados,
+            valorMensal: valorMensalFinal,
+            valorSetup: valorSetupFinal,
+            valorTotal,
+            descontoTipo,
+            descontoValor,
+          });
+        } catch (pdfError: any) {
+          toast({ title: "Erro ao gerar PDF", description: pdfError.message, variant: "destructive" });
+        }
       }
 
-      toast({ title: isEditingExisting ? "Proposta editada com sucesso!" : isEditingLead ? "Proposta atualizada com sucesso!" : "Proposta salva com sucesso!" });
       navigate("/propostas");
     } catch (error: any) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });

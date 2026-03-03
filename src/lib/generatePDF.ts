@@ -44,6 +44,15 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
+/**
+ * Remove caracteres que a codificação WinAnsi (Helvetica padrão) não suporta.
+ * Mantém ASCII imprimível (0x20–0x7E) e Latin-1 suplementar (0xA0–0xFF).
+ * Emojis, símbolos especiais e outros Unicode fora desse range são removidos.
+ */
+function sanitizeForPDF(text: string): string {
+  return text.replace(/[^\x20-\x7E\xA0-\xFF]/g, "").trim();
+}
+
 function drawTextRight(
   page: ReturnType<typeof PDFDocument.prototype.getPages>[0],
   text: string, rightX: number, y: number,
@@ -73,9 +82,11 @@ function calcServiceHeight(
   separatorGap: number,
 ): number {
   let h = lineHeight + 3;
-  const subItems = servico.descricao.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+  const descricao = (servico.descricao || "");
+  const subItems = descricao.split("\n").map(l => l.trim()).filter(l => l.length > 0);
   for (const item of subItems) {
-    const text = item.startsWith("-") ? item : `- ${item}`;
+    const text = sanitizeForPDF(item.startsWith("-") ? item : `- ${item}`);
+    if (!text) continue;
     const lines = wrapText(text, font, descFontSize, MAX_DESC_WIDTH);
     h += lines.length * lineHeight;
   }
@@ -124,7 +135,7 @@ export async function generatePDF(data: PDFData) {
   // ══════════════════════════════════════════════════════════════
   // CLIENT NAME
   // ══════════════════════════════════════════════════════════════
-  const clienteNome = data.clienteEmpresa || data.clienteNome;
+  const clienteNome = sanitizeForPDF(data.clienteEmpresa || data.clienteNome);
   page.drawText(clienteNome.toUpperCase(), {
     x: 42, y: height - 166, size: 16, font: helveticaBold, color: GOLD,
   });
@@ -179,7 +190,7 @@ export async function generatePDF(data: PDFData) {
       x: COL_NO, y: currentY, size: 10, font: helveticaBold, color: DARK,
     });
 
-    page.drawText(servico.nome, {
+    page.drawText(sanitizeForPDF(servico.nome), {
       x: COL_DESC, y: currentY, size: 10, font: helveticaBold, color: DARK,
     });
 
@@ -190,9 +201,11 @@ export async function generatePDF(data: PDFData) {
 
     currentY -= lineHeight + 3;
 
-    const subItems = servico.descricao.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    const descricao = (servico.descricao || "");
+    const subItems = descricao.split("\n").map(l => l.trim()).filter(l => l.length > 0);
     subItems.forEach((item) => {
-      const text = item.startsWith("-") ? item : `- ${item}`;
+      const text = sanitizeForPDF(item.startsWith("-") ? item : `- ${item}`);
+      if (!text) return;
       const wrappedLines = wrapText(text, helvetica, descFontSize, MAX_DESC_WIDTH);
       wrappedLines.forEach((line) => {
         page.drawText(line, {
