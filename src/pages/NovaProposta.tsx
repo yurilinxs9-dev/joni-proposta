@@ -90,21 +90,28 @@ export default function NovaProposta() {
       id: sp.id,
       nome: sp.nome,
       descricao: sp.descricao || "",
-      valor_mensal: sp.valor_mensal,
-      valor_setup: sp.valor_setup,
+      valor_mensal: Number(sp.valor_mensal) || 0,
+      valor_setup: Number(sp.valor_setup) || 0,
       temSetup: sp.tem_setup,
       selecionado: false,
       isCustom: true,
       oculto: sp.oculto,
     }));
 
-    // Manter estado de seleção anterior
+    // Manter estado de seleção e valores editados
     setServicos((prev) => {
       const combined = [...padrao, ...custom];
       return combined.map((s) => {
         const existing = prev.find((p) => p.nome === s.nome);
         if (existing) {
-          return { ...s, selecionado: existing.selecionado, descricao: existing.descricao };
+          return {
+            ...s,
+            selecionado: existing.selecionado,
+            descricao: existing.descricao,
+            valor_mensal: existing.selecionado ? existing.valor_mensal : s.valor_mensal,
+            valor_setup: existing.selecionado ? existing.valor_setup : s.valor_setup,
+            investimento_trafego: existing.selecionado ? existing.investimento_trafego : s.investimento_trafego,
+          };
         }
         return s;
       });
@@ -121,7 +128,9 @@ export default function NovaProposta() {
     setClienteWhatsapp(propostaExistente.cliente_whatsapp ?? "");
     setObservacoes(propostaExistente.observacoes ?? "");
     if (propostaExistente.desconto_tipo) setDescontoTipo(propostaExistente.desconto_tipo as "percentual" | "fixo");
-    if (propostaExistente.desconto_valor) setDescontoValor(propostaExistente.desconto_valor);
+    if (propostaExistente.desconto_valor != null && propostaExistente.desconto_valor !== 0) {
+      setDescontoValor(Number(propostaExistente.desconto_valor) || 0);
+    }
 
     const servicosSalvos = propostaExistente.proposta_servicos ?? [];
     if (servicosSalvos.length > 0) {
@@ -132,8 +141,8 @@ export default function NovaProposta() {
           return {
             ...s,
             selecionado: true,
-            valor_mensal: saved.valor_mensal,
-            valor_setup: saved.valor_setup,
+            valor_mensal: Number(saved.valor_mensal) || 0,
+            valor_setup: Number(saved.valor_setup) || 0,
             descricao: saved.descricao ?? s.descricao,
           };
         })
@@ -163,8 +172,8 @@ export default function NovaProposta() {
   const servicosVisiveis = servicos.filter((s) => !s.oculto);
 
   const selecionados = servicos.filter((s) => s.selecionado);
-  const subtotalMensal = selecionados.reduce((sum, s) => sum + s.valor_mensal, 0);
-  const subtotalSetup = selecionados.reduce((sum, s) => sum + s.valor_setup, 0);
+  const subtotalMensal = selecionados.reduce((sum, s) => sum + (Number(s.valor_mensal) || 0), 0);
+  const subtotalSetup = selecionados.reduce((sum, s) => sum + (Number(s.valor_setup) || 0), 0);
   const subtotal = subtotalMensal + subtotalSetup;
   const desconto =
     descontoTipo === "percentual" ? subtotal * (descontoValor / 100) : descontoValor;
@@ -224,41 +233,28 @@ export default function NovaProposta() {
     try {
       const servicosFormatados = selecionados.map((s) => ({
         servico_nome: s.nome,
-        descricao: s.descricao,
-        valor_mensal: s.valor_mensal,
-        valor_setup: s.valor_setup,
+        descricao: s.descricao || "",
+        valor_mensal: Number(s.valor_mensal) || 0,
+        valor_setup: Number(s.valor_setup) || 0,
       }));
 
+      const valoresProposta = {
+        cliente_nome: clienteNome,
+        cliente_empresa: clienteEmpresa || undefined,
+        cliente_whatsapp: clienteWhatsapp || undefined,
+        valor_mensal: Number(valorMensalFinal) || 0,
+        valor_setup: Number(valorSetupFinal) || 0,
+        valor_total: Number(valorTotal) || 0,
+        desconto_tipo: descontoTipo,
+        desconto_valor: Number(descontoValor) || 0,
+        observacoes: observacoes || undefined,
+        servicos: servicosFormatados,
+      };
+
       if (isEditingLead) {
-        // Atualizar proposta existente (lead da agenda)
-        await updatePropostaCompleta.mutateAsync({
-          id: leadPropostaId,
-          cliente_nome: clienteNome,
-          cliente_empresa: clienteEmpresa || undefined,
-          cliente_whatsapp: clienteWhatsapp || undefined,
-          valor_mensal: valorMensalFinal,
-          valor_setup: valorSetupFinal,
-          valor_total: valorTotal,
-          desconto_tipo: descontoTipo,
-          desconto_valor: descontoValor,
-          observacoes: observacoes || undefined,
-          servicos: servicosFormatados,
-        });
+        await updatePropostaCompleta.mutateAsync({ id: leadPropostaId, ...valoresProposta });
       } else {
-        // Criar nova proposta
-        await createProposta.mutateAsync({
-          cliente_nome: clienteNome,
-          cliente_empresa: clienteEmpresa || undefined,
-          cliente_whatsapp: clienteWhatsapp || undefined,
-          valor_mensal: valorMensalFinal,
-          valor_setup: valorSetupFinal,
-          valor_total: valorTotal,
-          desconto_tipo: descontoTipo,
-          desconto_valor: descontoValor,
-          observacoes: observacoes || undefined,
-          criado_por: user?.id,
-          servicos: servicosFormatados,
-        });
+        await createProposta.mutateAsync({ ...valoresProposta, criado_por: user?.id });
       }
 
       if (downloadPDF) {
