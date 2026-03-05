@@ -263,13 +263,22 @@ export async function generatePDF(data: PDFData) {
   // SAVE & DOWNLOAD
   // ══════════════════════════════════════════════════════════════
   const pdfBytes = await pdfDoc.save();
+  const fileName = `proposta-${data.clienteNome.replace(/\s+/g, "-").toLowerCase()}.pdf`;
   const blob = new Blob([pdfBytes as unknown as ArrayBuffer], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `proposta-${data.clienteNome.replace(/\s+/g, "-").toLowerCase()}.pdf`;
-  link.click();
-  URL.revokeObjectURL(url);
+  const file = new File([blob], fileName, { type: "application/pdf" });
+
+  // Mobile: usa Web Share API para abrir "Salvar nos Arquivos" nativo
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: fileName });
+  } else {
+    // Desktop: download direto via link
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 }
 
 function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
