@@ -7,16 +7,35 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/components/AppLayout";
 
+// ── Lazy import com retry automático (resolve chunk failures após deploy) ──────
+function lazyRetry<T extends { default: React.ComponentType<any> }>(
+  importFn: () => Promise<T>,
+): React.LazyExoticComponent<T["default"]> {
+  return lazy(() =>
+    importFn().catch(() => {
+      // Chunk antigo não existe mais — recarrega a página uma vez
+      const key = "chunk_reload";
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+      }
+      // Se já recarregou e ainda falha, limpa flag e rejeita
+      sessionStorage.removeItem(key);
+      return importFn();
+    })
+  );
+}
+
 // ── Code-split page imports ────────────────────────────────────────────────────
-const Auth = lazy(() => import("./pages/Auth"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Vendas = lazy(() => import("./pages/Vendas"));
-const NovaProposta = lazy(() => import("./pages/NovaProposta"));
-const Propostas = lazy(() => import("./pages/Propostas"));
-const Kanban = lazy(() => import("./pages/Kanban"));
-const Configuracoes = lazy(() => import("./pages/Configuracoes"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const PropostaPublica = lazy(() => import("./pages/PropostaPublica"));
+const Auth = lazyRetry(() => import("./pages/Auth"));
+const Dashboard = lazyRetry(() => import("./pages/Dashboard"));
+const Vendas = lazyRetry(() => import("./pages/Vendas"));
+const NovaProposta = lazyRetry(() => import("./pages/NovaProposta"));
+const Propostas = lazyRetry(() => import("./pages/Propostas"));
+const Kanban = lazyRetry(() => import("./pages/Kanban"));
+const Configuracoes = lazyRetry(() => import("./pages/Configuracoes"));
+const NotFound = lazyRetry(() => import("./pages/NotFound"));
+const PropostaPublica = lazyRetry(() => import("./pages/PropostaPublica"));
 
 // ── Page loader fallback ───────────────────────────────────────────────────────
 function PageLoader() {
@@ -35,6 +54,19 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, message: error.message };
+  }
+
+  componentDidCatch(error: Error) {
+    // Auto-reload em erros de chunk (deploy novo invalida hashes antigos)
+    if (error.message?.includes("dynamically imported module") || error.message?.includes("Failed to fetch")) {
+      const key = "eb_chunk_reload";
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+        return;
+      }
+      sessionStorage.removeItem(key);
+    }
   }
 
   render() {

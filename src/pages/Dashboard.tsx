@@ -51,9 +51,9 @@ export default function Dashboard() {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
 
-  const totalEnviado = mesAtual.reduce((sum, p) => sum + p.valor_total, 0);
+  const totalEnviado = mesAtual.reduce((sum, p) => sum + (Number(p.valor_total) || 0), 0);
   const fechados = mesAtual.filter((p) => p.status === "fechado");
-  const totalFechado = fechados.reduce((sum, p) => sum + p.valor_total, 0);
+  const totalFechado = fechados.reduce((sum, p) => sum + (Number(p.valor_total) || 0), 0);
   const ticketMedio = mesAtual.length > 0 ? totalEnviado / mesAtual.length : 0;
 
   // Follow-up: propostas enviadas/negociação sem movimento há > 3 dias

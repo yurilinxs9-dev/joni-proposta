@@ -207,8 +207,8 @@ export default function Propostas() {
     const servicos = (p.proposta_servicos || []).map((s: any) => ({
       nome: s.servico_nome,
       descricao: s.descricao || "",
-      valor_mensal: s.valor_mensal,
-      valor_setup: s.valor_setup,
+      valor_mensal: Number(s.valor_mensal) || 0,
+      valor_setup: Number(s.valor_setup) || 0,
       selecionado: true,
     }));
     await generatePDF({
@@ -217,11 +217,11 @@ export default function Propostas() {
       clienteEmail: p.cliente_email || "",
       clienteWhatsapp: p.cliente_whatsapp || "",
       servicos,
-      valorMensal: p.valor_mensal,
-      valorSetup: p.valor_setup,
-      valorTotal: p.valor_total,
+      valorMensal: Number(p.valor_mensal) || 0,
+      valorSetup: Number(p.valor_setup) || 0,
+      valorTotal: Number(p.valor_total) || 0,
       descontoTipo: p.desconto_tipo || "percentual",
-      descontoValor: p.desconto_valor || 0,
+      descontoValor: Number(p.desconto_valor) || 0,
     });
   };
 

@@ -144,9 +144,9 @@ export default function Vendas() {
       servicos.forEach((servico) => {
         const cat = categorizeServico(servico.servico_nome);
         stats[cat].quantidade += 1;
-        stats[cat].valorMensal += servico.valor_mensal;
-        stats[cat].valorSetup += servico.valor_setup;
-        stats[cat].valorTotal += servico.valor_mensal + servico.valor_setup;
+        stats[cat].valorMensal += Number(servico.valor_mensal) || 0;
+        stats[cat].valorSetup += Number(servico.valor_setup) || 0;
+        stats[cat].valorTotal += (Number(servico.valor_mensal) || 0) + (Number(servico.valor_setup) || 0);
       });
     });
 
@@ -210,7 +210,7 @@ export default function Vendas() {
           servicos.forEach((servico) => {
             const cat = categorizeServico(servico.servico_nome) as keyof typeof monthData;
             if (cat !== "mes") {
-              monthData[cat] += servico.valor_mensal + servico.valor_setup;
+              monthData[cat] += (Number(servico.valor_mensal) || 0) + (Number(servico.valor_setup) || 0);
             }
           });
         });
@@ -459,9 +459,7 @@ export default function Vendas() {
                     innerRadius={50}
                     strokeWidth={2}
                     stroke="hsl(0, 0%, 100%)"
-                    label={({ name, percent }) =>
-                      `${name}: ${(percent * 100).toFixed(0)}%`
-                    }
+                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                     labelLine={false}
                   >
                     {pieData.map((entry, i) => (
