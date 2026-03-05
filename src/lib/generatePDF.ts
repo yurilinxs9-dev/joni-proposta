@@ -265,6 +265,19 @@ export async function generatePDF(data: PDFData) {
   const pdfBytes = await pdfDoc.save();
   const fileName = `proposta-${data.clienteNome.replace(/\s+/g, "-").toLowerCase()}.pdf`;
   const blob = new Blob([pdfBytes as unknown as ArrayBuffer], { type: "application/pdf" });
+
+  // Mobile real: detecta por user agent (Android/iPhone/iPad)
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isMobile && navigator.share) {
+    const file = new File([blob], fileName, { type: "application/pdf" });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: fileName });
+      return;
+    }
+  }
+
+  // Desktop: download automático direto
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
