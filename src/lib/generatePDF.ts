@@ -267,11 +267,14 @@ export async function generatePDF(data: PDFData) {
   const blob = new Blob([pdfBytes as unknown as ArrayBuffer], { type: "application/pdf" });
   const file = new File([blob], fileName, { type: "application/pdf" });
 
-  // Mobile: usa Web Share API para abrir "Salvar nos Arquivos" nativo
-  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+  // Detecta mobile por touch + tela pequena
+  const isMobile = "ontouchstart" in window && window.innerWidth < 768;
+
+  if (isMobile && navigator.share && navigator.canShare?.({ files: [file] })) {
+    // Mobile: abre "Salvar nos Arquivos" nativo
     await navigator.share({ files: [file], title: fileName });
   } else {
-    // Desktop: download direto via link
+    // Desktop: download automático direto
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
