@@ -265,23 +265,14 @@ export async function generatePDF(data: PDFData) {
   const pdfBytes = await pdfDoc.save();
   const fileName = `proposta-${data.clienteNome.replace(/\s+/g, "-").toLowerCase()}.pdf`;
   const blob = new Blob([pdfBytes as unknown as ArrayBuffer], { type: "application/pdf" });
-  const file = new File([blob], fileName, { type: "application/pdf" });
-
-  // Detecta mobile por touch + tela pequena
-  const isMobile = "ontouchstart" in window && window.innerWidth < 768;
-
-  if (isMobile && navigator.share && navigator.canShare?.({ files: [file] })) {
-    // Mobile: abre "Salvar nos Arquivos" nativo
-    await navigator.share({ files: [file], title: fileName });
-  } else {
-    // Desktop: download automático direto
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
